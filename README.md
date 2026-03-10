@@ -6,3 +6,4 @@ Note: due to how this repo works, we no longer accept pull requests directly. In
 
 Additional utility documentation:
 - [Prompt template (Hebrew) for Home Front Command alert predictor analysis](homefront_alert_analysis_prompt_he.md)
+- [HTML table template (Hebrew RTL) for Top 10 predictor output](homefront_top10_table_template_he.html)

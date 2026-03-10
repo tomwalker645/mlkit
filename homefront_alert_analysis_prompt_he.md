@@ -31,3 +31,6 @@
 - זמן התרעה ממוצע
 - זמן התרעה חציוני (Median)
 ```
+
+לתצוגת טבלה מוכנה ב-HTML (עברית RTL) אפשר להשתמש בתבנית:
+`homefront_top10_table_template_he.html`
