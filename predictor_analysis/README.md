@@ -1,11 +1,11 @@
-# Predictor Analysis — Rocket Alert Settlement Data
+# Predictor Analysis — Rocket Alert Settlement Data  (v2.0)
 
 This tool reads a Telegram channel export (`result_filtered.json`) containing
 Hebrew rocket-alert messages and produces two tables:
 
-1. **Top 10 predictors by precision** — settlements whose alert most reliably
+1. **Top N predictors by precision** — settlements whose alert most reliably
    precedes an alert for the target settlement within a 15–600 second window.
-2. **Top 3 operational triggers** — a weighted score combining precision,
+2. **Top K operational triggers** — a weighted score combining precision,
    lead-time quality, and volume.
 
 ---
@@ -19,14 +19,23 @@ Hebrew rocket-alert messages and produces two tables:
 
 ## Quick Start (Windows PowerShell)
 
+**Recommended — write directly to a UTF-8 file with `--output`:**
+
 ```powershell
 cd "C:\Users\User\Downloads"
-py analyze_predictors_en_safe.py --input result_filtered.json --target AUTO_BEIT_HAG --min-volume 20 > output.txt 2>&1
+py analyze_predictors_en_safe.py --input result_filtered.json --target AUTO_BEIT_HAG --min-volume 20 --output output.txt
 notepad output.txt
 ```
 
-> **Note:** Do not use `type output.txt` — it does not display Hebrew correctly.
-> Open `output.txt` with Notepad (`notepad output.txt`) or drag it into VSCode/Notepad++.
+> Using `--output output.txt` writes a proper UTF-8 file directly,
+> so Hebrew characters are always preserved correctly.
+> No need to redirect with `>` at all.
+
+**List all available settlements (to pick a custom `--target`):**
+
+```powershell
+py analyze_predictors_en_safe.py --input result_filtered.json --list-targets
+```
 
 ---
 
@@ -36,9 +45,13 @@ notepad output.txt
 |---|---|---|
 | `--input` | *(required)* | Path to the Telegram export JSON file |
 | `--target` | `AUTO_BEIT_HAG` | Target settlement. `AUTO_BEIT_HAG` auto-detects the Beit Hag settlement |
-| `--start-date` | `2026-02-28` | Start date `YYYY-MM-DD` |
+| `--start-date` | *(30 days ago)* | Start date `YYYY-MM-DD` |
 | `--end-date` | *(now)* | End date `YYYY-MM-DD` |
 | `--min-volume` | `20` | Minimum alert count for a settlement to be considered |
+| `--top-n` | `10` | Number of rows in Table 1 (precision table) |
+| `--top-k` | `3` | Number of rows in Table 2 (operational triggers) |
+| `--output FILE` | *(console)* | Write results to FILE in UTF-8 (recommended on Windows) |
+| `--list-targets` | — | List all qualifying settlements and exit |
 
 ---
 
@@ -71,7 +84,7 @@ The tool expects a standard Telegram channel export file:
 |---|---|---|
 | `ERROR: Input file not found` | The JSON file path is wrong | Check spelling and directory |
 | `ERROR: No rocket-alert settlement events found` | Date range too narrow, or messages don't match the expected format | Widen `--start-date` |
-| `ERROR: Could not auto-detect a target` | No settlement containing the target keywords was found | Use `--target <explicit name>` |
+| `ERROR: Could not auto-detect a target` | No settlement containing the target keywords was found | Run with `--list-targets` to see options, then use `--target <name>` |
 
 ---
 

@@ -1,21 +1,38 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Predictor Analysis Tool
-=======================
+Predictor Analysis Tool  (v2.0)
+================================
 Reads a Telegram channel export (result_filtered.json) containing Hebrew
 rocket-alert messages, and finds which settlements are the best predictors
 (by precision and operational score) for a target settlement.
 
 Usage
 -----
+    # Basic — write results directly to a UTF-8 file:
     py analyze_predictors_en_safe.py --input result_filtered.json \
-        --target AUTO_BEIT_HAG --min-volume 20
+        --target AUTO_BEIT_HAG --min-volume 20 --output output.txt
+
+    # List all available target settlements:
+    py analyze_predictors_en_safe.py --input result_filtered.json --list-targets
+
+    # Custom table sizes and date window:
+    py analyze_predictors_en_safe.py --input result_filtered.json \
+        --target AUTO_BEIT_HAG --top-n 15 --top-k 5 \
+        --start-date 2026-01-01 --output output.txt
 
 Output
 ------
-  - Top 10 settlements by precision (P(target|settlement fires first))
-  - Top 3 operational triggers (weighted score of precision + lead-time + volume)
+  - Table 1: Top N settlements by precision (P(target|settlement fires first))
+  - Table 2: Top K operational triggers (weighted score of precision + lead-time + volume)
+
+New in v2.0
+-----------
+  --output FILE     Write results directly to a UTF-8 file (no redirect needed)
+  --list-targets    List all settlements with enough volume so you can pick --target
+  --top-n N         Number of rows in Table 1 (default 10)
+  --top-k K         Number of rows in Table 2 (default 3)
+  Dynamic default start date: 30 days before today instead of a hard-coded date
 """
 
 import json
@@ -29,9 +46,12 @@ from datetime import datetime, timedelta
 from bisect import bisect_left
 from statistics import median
 
-DEFAULT_START_DATE = "2026-02-28"
+VERSION = "2.0"
+
 DEFAULT_TARGET = "AUTO_BEIT_HAG"
 DEFAULT_MIN_VOLUME = 20
+DEFAULT_TOP_N = 10
+DEFAULT_TOP_K = 3
 MIN_LEAD_SEC = 15
 MAX_LEAD_SEC = 600
 
@@ -313,8 +333,20 @@ def main():
     if hasattr(sys.stderr, "reconfigure"):
         sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
+    # Dynamic default start date: 30 days before today
+    default_start_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+
     parser = argparse.ArgumentParser(
-        description="Analyze rocket alert Telegram export and find settlement predictors."
+        description=f"Predictor Analysis Tool v{VERSION} — Find settlement predictors in rocket-alert data.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Examples:\n"
+            "  # Write results to a UTF-8 file (recommended on Windows):\n"
+            "  py analyze_predictors_en_safe.py --input result_filtered.json "
+            "--target AUTO_BEIT_HAG --min-volume 20 --output output.txt\n\n"
+            "  # List all available settlements (to pick a --target):\n"
+            "  py analyze_predictors_en_safe.py --input result_filtered.json --list-targets\n"
+        ),
     )
     parser.add_argument(
         "--input",
@@ -328,8 +360,8 @@ def main():
     )
     parser.add_argument(
         "--start-date",
-        default=DEFAULT_START_DATE,
-        help=f"Start date in YYYY-MM-DD format (default: {DEFAULT_START_DATE})",
+        default=default_start_date,
+        help=f"Start date in YYYY-MM-DD format (default: 30 days ago = {default_start_date})",
     )
     parser.add_argument(
         "--end-date",
@@ -342,6 +374,35 @@ def main():
         default=DEFAULT_MIN_VOLUME,
         help=f"Minimum alert count per settlement to include in analysis (default: {DEFAULT_MIN_VOLUME})",
     )
+    parser.add_argument(
+        "--top-n",
+        type=int,
+        default=DEFAULT_TOP_N,
+        help=f"Number of rows to show in Table 1 (precision table, default: {DEFAULT_TOP_N})",
+    )
+    parser.add_argument(
+        "--top-k",
+        type=int,
+        default=DEFAULT_TOP_K,
+        help=f"Number of operational triggers to show in Table 2 (default: {DEFAULT_TOP_K})",
+    )
+    parser.add_argument(
+        "--output",
+        default=None,
+        metavar="FILE",
+        help=(
+            "Write results to FILE in UTF-8 encoding (recommended on Windows). "
+            "If omitted, output is printed to the console."
+        ),
+    )
+    parser.add_argument(
+        "--list-targets",
+        action="store_true",
+        help=(
+            "List all settlements that meet --min-volume and exit. "
+            "Use this to find a valid value for --target."
+        ),
+    )
     args = parser.parse_args()
 
     # Robust missing-file handling
@@ -349,7 +410,10 @@ def main():
         print(f"ERROR: Input file not found: {args.input}")
         print()
         print("Make sure your Telegram export file is in the current directory, then run:")
-        print(f"  py analyze_predictors_en_safe.py --input result_filtered.json --min-volume {args.min_volume}")
+        print(
+            f"  py analyze_predictors_en_safe.py --input result_filtered.json"
+            f" --min-volume {args.min_volume}"
+        )
         sys.exit(1)
 
     start_dt = datetime.fromisoformat(args.start_date + "T00:00:00")
@@ -376,6 +440,26 @@ def main():
         print(f"  Date range: {start_dt} .. {end_dt}")
         print("  Try widening --start-date or removing --end-date.")
         sys.exit(1)
+
+    # --list-targets mode: print all settlements with enough volume and exit
+    if args.list_targets:
+        qualifying = sorted(
+            [(k, len(v)) for k, v in events_by_settlement.items() if len(v) >= args.min_volume],
+            key=lambda x: x[1],
+            reverse=True,
+        )
+        print(f"\nSettlements with >= {args.min_volume} alerts (use one as --target):")
+        print(f"  {'#':<4}  {'Count':>5}  Settlement")
+        print("  " + "-" * 50)
+        for idx, (name, count) in enumerate(qualifying, 1):
+            try:
+                print(f"  {idx:<4}  {count:>5}  {name}")
+            except UnicodeEncodeError:
+                sys.stdout.buffer.write(
+                    f"  {idx:<4}  {count:>5}  {name}\n".encode("utf-8", errors="replace")
+                )
+        print(f"\nTotal: {len(qualifying)} settlements")
+        sys.exit(0)
 
     if args.target == "AUTO_BEIT_HAG":
         target_key = auto_pick_target(events_by_settlement)
@@ -405,48 +489,64 @@ def main():
         sys.exit(1)
 
     rows, target_count = compute_predictor_stats(events_by_settlement, target_key, args.min_volume)
-    top10 = rows[:10]
-    recs = pick_top_operational(top10, 3)
+    top_n_rows = rows[: args.top_n]
+    recs = pick_top_operational(top_n_rows, args.top_k)
 
-    print()
-    print("=== Predictor Analysis ===")
-    print_safe(f"Target         : {target_key}")
-    print(f"Target events  : {target_count}")
-    print(f"Date range     : {start_dt} .. {end_dt}")
-    print(f"Min volume     : {args.min_volume}")
-    print(f"Window         : {MIN_LEAD_SEC}s .. {MAX_LEAD_SEC}s")
-    print()
+    # Build the full output as a list of lines so we can write to file or console
+    lines = []
+    lines.append("")
+    lines.append(f"=== Predictor Analysis (v{VERSION}) ===")
+    lines.append(f"Target         : {target_key}")
+    lines.append(f"Target events  : {target_count}")
+    lines.append(f"Date range     : {start_dt} .. {end_dt}")
+    lines.append(f"Min volume     : {args.min_volume}")
+    lines.append(f"Window         : {MIN_LEAD_SEC}s .. {MAX_LEAD_SEC}s")
+    lines.append("")
 
-    # Table 1 - Top 10 by precision
-    print("--- Table 1: Top 10 Predictors by Precision ---")
-    print(
+    # Table 1 — Top N by precision
+    lines.append(f"--- Table 1: Top {args.top_n} Predictors by Precision ---")
+    lines.append(
         f"{'#':<3}  {'Settlement':<35}  {'Total':>5}  "
         f"{'Precision':>9}  {'Avg Lead':>8}  {'Med Lead':>8}  "
         f"{'P(sett|tgt)':>11}  {'Hits/Total':>10}"
     )
-    print("-" * 100)
-    for i, r in enumerate(top10, 1):
-        print_safe(
+    lines.append("-" * 100)
+    for i, r in enumerate(top_n_rows, 1):
+        lines.append(
             f"{i:<3}  {r['settlement']:<35}  {r['total_events']:>5}  "
             f"{pct(r['precision']):>9}  {format_lead(r['avg_lead_sec']):>8}  "
             f"{format_lead(r['med_lead_sec']):>8}  {pct(r['p_settlement_given_target']):>11}  "
             f"{r['success_count']}/{r['total_events']}"
         )
 
-    print()
-    # Table 2 - Top 3 operational triggers
-    print("--- Table 2: Top 3 Operational Triggers ---")
+    lines.append("")
+    # Table 2 — Top K operational triggers
+    lines.append(f"--- Table 2: Top {args.top_k} Operational Triggers ---")
     if not recs:
-        print("No recommendations (insufficient lead-time data).")
+        lines.append("No recommendations (insufficient lead-time data).")
     else:
         for i, r in enumerate(recs, 1):
-            print_safe(
+            lines.append(
                 f"{i}) {r['settlement']}  |  "
                 f"precision={pct(r['precision'])}  |  "
                 f"avg_lead={format_lead(r['avg_lead_sec'])}  |  "
                 f"total={r['total_events']}  |  "
                 f"score={r['operational_score']:.3f}"
             )
+
+    output_text = "\n".join(lines) + "\n"
+
+    if args.output:
+        # Write directly to a UTF-8 file — no encoding issues on Windows
+        with open(args.output, "w", encoding="utf-8") as fout:
+            fout.write(output_text)
+        print(f"Results written to: {args.output}")
+    else:
+        # Print to console (stdout already reconfigured to UTF-8 at top of main)
+        try:
+            print(output_text, end="")
+        except UnicodeEncodeError:
+            sys.stdout.buffer.write(output_text.encode("utf-8", errors="replace"))
 
 
 if __name__ == "__main__":
