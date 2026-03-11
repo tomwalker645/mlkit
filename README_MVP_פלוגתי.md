@@ -1,7 +1,15 @@
 # הפעלה מהירה - נוכחות פלוגתית MVP
 
-קובץ האפליקציה:
-- `C:\Users\User\Documents\נוכחות\נוכחות_פלוגתית_MVP.html`
+## 🔗 קישור לאפליקציה החיה
+
+**https://attendance-ploga.web.app**
+
+(גיבוי: https://attendance-ploga.firebaseapp.com)
+
+---
+
+קובץ המקור:
+- `index.html` בשורש הריפו
 
 ## מה זה נותן כרגע
 - התחברות משתמשים (אימייל/סיסמה)
