@@ -339,6 +339,18 @@
           </div>
         </div>
 
+        <div id="backupCard" class="card col-4 hidden">
+          <h3 style="margin-top:0;">גיבוי וייצוא נתונים</h3>
+          <div class="row">
+            <button class="btn-soft" id="exportDataJsonBtn" type="button">ייצוא מבנה (JSON)</button>
+          </div>
+          <div class="muted">מוריד קובץ JSON עם כל המחלקות, הצוותים והחיילים כגיבוי.</div>
+          <div class="row" style="margin-top:10px;">
+            <button class="btn-soft" id="exportReportsCsvBtn" type="button">ייצוא דוחות (CSV)</button>
+          </div>
+          <div class="muted">מוריד קובץ CSV עם כל דוחות הנוכחות הנטענים כרגע.</div>
+        </div>
+
         <div id="attendanceInfoCard" class="card col-8 hidden">
           <h3 style="margin-top:0;">דיווח נוכחות</h3>
           <div class="muted">דף זה מוכן. בשלב הבא נוסיף כאן את התוכן שתבחר.</div>
@@ -359,6 +371,7 @@
           <div class="row">
             <button class="btn-ok" id="saveReportBtn">שמור דוח</button>
             <button class="btn-soft btn-inline" id="sendWhatsAppBtn" type="button" style="width:auto; padding:8px 12px;">שלח בוואטסאפ לנמענים</button>
+            <button class="btn-soft btn-inline" id="downloadReportTxtBtn" type="button" style="width:auto; padding:8px 12px;">הורד דוח TXT</button>
           </div>
         </div>
 
@@ -436,7 +449,7 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
-    const LOCAL_APP_VERSION = '2026.03.07.2';
+    const LOCAL_APP_VERSION = '2026.03.11.1';
 
 
     const state = {
@@ -1004,6 +1017,7 @@
       el('myUserCard').classList.toggle('hidden', !inSettings);
       el('commanderUsersCard').classList.toggle('hidden', !(canManageCompany && inSettings));
       el('manageDataCard').classList.toggle('hidden', !(canManageCompany && inSettings));
+      el('backupCard').classList.toggle('hidden', !(canManageCompany && inSettings));
       el('permissionsCard').classList.toggle('hidden', !(canManageCompany && inSettings));
       el('companyDashboardCard').classList.toggle('hidden', !(canManageCompany && inSettings));
 
@@ -1257,6 +1271,80 @@
         window.open(url, '_blank');
       });
       showError('נפתחו חלונות וואטסאפ לנמענים שנבחרו.');
+    }
+
+    function downloadReportTxt() {
+      if (!state.lastReportText) {
+        showError('אין דוח אחרון להורדה. קודם שמור/י דוח.');
+        return;
+      }
+      const stamp = new Date().toISOString().slice(0, 16).replace('T', '_').replace(/:/g, '-');
+      const filename = `דוח_נוכחות_${stamp}.txt`;
+      const blob = new Blob([state.lastReportText], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportDataAsJson() {
+      const data = {
+        exportedAt: new Date().toISOString(),
+        companyCode: state.profile?.companyCode || '',
+        platoons: state.platoons.map(({ id, name }) => ({ id, name })),
+        teams: state.teams.map(({ id, name, platoonId }) => ({ id, name, platoonId })),
+        soldiers: state.soldiers.map(({ id, name, platoonId, teamId }) => ({ id, name, platoonId, teamId }))
+      };
+      const json = JSON.stringify(data, null, 2);
+      const stamp = new Date().toISOString().slice(0, 10);
+      const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `גיבוי_נוכחות_${stamp}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function csvEscapeField(val) {
+      const s = String(val == null ? '' : val);
+      if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
+        return '"' + s.replace(/"/g, '""') + '"';
+      }
+      return s;
+    }
+
+    function exportReportsCsv() {
+      if (!state.reports.length) {
+        showError('אין דוחות לייצוא.');
+        return;
+      }
+      const BOM = '\uFEFF';
+      const header = 'תאריך,מחלקה,מדווח,נוכחים,חסרים,חריג,לא דווח,הערה';
+      const rows = state.reports.map((r) => {
+        const s = r.summary || {};
+        return [
+          csvEscapeField(fmtDate(r.createdAt)),
+          csvEscapeField(platoonNameById(r.platoonId)),
+          csvEscapeField(r.createdByName || ''),
+          s.present || 0,
+          s.missing || 0,
+          s.extra || 0,
+          s.none || 0,
+          csvEscapeField(r.note || '')
+        ].join(',');
+      });
+      const csv = BOM + [header, ...rows].join('\n');
+      const stamp = new Date().toISOString().slice(0, 10);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `דוחות_נוכחות_${stamp}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
     }
 
     function fmtDate(ts) {
@@ -1599,6 +1687,17 @@
     el('refreshReportsBtn').addEventListener('click', renderReports);
     el('filterPlatoon').addEventListener('change', renderReports);
     el('filterDate').addEventListener('change', renderReports);
+    el('sendWhatsAppBtn').addEventListener('click', openWhatsAppForLastReport);
+    el('downloadReportTxtBtn').addEventListener('click', downloadReportTxt);
+    el('saveCompanyAccessCodeBtn').addEventListener('click', async () => {
+      try { await saveCompanyAccessCode(); } catch (e) { showError(e.message); }
+    });
+    el('exportDataJsonBtn').addEventListener('click', () => {
+      try { exportDataAsJson(); } catch (e) { showError(e.message); }
+    });
+    el('exportReportsCsvBtn').addEventListener('click', () => {
+      try { exportReportsCsv(); } catch (e) { showError(e.message); }
+    });
 
     switchAuthMode('login');
     updateRegisterRoleFields();
@@ -1643,118 +1742,3 @@
   </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
