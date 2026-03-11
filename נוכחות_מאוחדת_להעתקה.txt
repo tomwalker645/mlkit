@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>נוכחות מאוחדת</title>
+  <style>
+    :root {
+      --brand: #0b5cab;
+      --brand-dark: #073f76;
+      --ok: #1f9d55;
+      --bad: #d13a42;
+      --warn: #d9a404;
+      --card: #ffffff;
+      --bg: #eef3f8;
+      --text: #243342;
+      --muted: #6c7a89;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+      background: linear-gradient(180deg, #f7fbff 0%, var(--bg) 100%);
+      color: var(--text);
+      padding: 10px 10px 140px;
+    }
+    .app {
+      width: 100%;
+      max-width: 920px;
+      margin: 0 auto;
+    }
+    .header {
+      background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
+      color: #fff;
+      border-radius: 14px;
+      padding: 12px;
+      position: sticky;
+      top: 6px;
+      z-index: 100;
+      box-shadow: 0 8px 18px rgba(8, 52, 96, 0.25);
+    }
+    .header-top {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .title {
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+    .stats {
+      margin-top: 10px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .stat {
+      background: rgba(255, 255, 255, 0.16);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 10px;
+      text-align: center;
+      padding: 6px;
+      font-size: 0.78rem;
+    }
+    .stat strong {
+      display: block;
+      font-size: 1.2rem;
+      margin-top: 2px;
+    }
+    .panel {
+      margin-top: 10px;
+      background: var(--card);
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    }
+    .management { display: none; border: 2px dashed #c7d8ea; }
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    input, select {
+      flex: 1;
+      min-width: 130px;
+      border: 1px solid #c9d5e2;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 16px;
+      background: #fff;
+    }
+    button {
+      border: 0;
+      border-radius: 9px;
+      cursor: pointer;
+      font-weight: 700;
+      padding: 10px 12px;
+      min-height: 42px;
+    }
+    .btn-primary { background: var(--brand); color: #fff; }
+    .btn-muted { background: #66788a; color: #fff; }
+    .btn-ok { background: var(--ok); color: #fff; }
+    .btn-bad { background: var(--bad); color: #fff; }
+    .btn-warn { background: var(--warn); color: #222; }
+    .btn-soft { background: #e9eef5; color: #30455a; }
+
+    .search { width: 100%; }
+    .team {
+      margin-top: 12px;
+      background: var(--card);
+      border-radius: 12px;
+      padding: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    .team-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 4px 10px;
+      border-bottom: 1px solid #edf2f7;
+      margin-bottom: 4px;
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+    .person {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      border-radius: 9px;
+      border-right: 6px solid #c8d2dc;
+      background: #fff;
+      padding: 9px;
+      margin-top: 6px;
+    }
+    .person.present { border-right-color: var(--ok); background: #f0fbf4; }
+    .person.missing { border-right-color: var(--bad); background: #fff3f4; }
+    .person.extra { border-right-color: var(--warn); background: #fffbee; }
+    .person.none { border-right-color: #b9c5d1; }
+    .person-name {
+      font-weight: 600;
+      line-height: 1.3;
+      word-break: break-word;
+    }
+    .actions { display: flex; gap: 4px; }
+    .actions button { min-width: 38px; padding: 8px 8px; }
+
+    .recipient-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding: 7px;
+      border-radius: 8px;
+      background: #f6f9fd;
+      margin-top: 5px;
+      font-size: 0.9rem;
+    }
+
+    .footer {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #fff;
+      border-top: 1px solid #dce6f2;
+      padding: 10px;
+      box-shadow: 0 -4px 18px rgba(0,0,0,0.09);
+    }
+    .footer-inner {
+      max-width: 920px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+    .full { grid-column: 1 / -1; }
+
+    #sendModal, #historyModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(10,20,35,0.78);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+    }
+    .modal {
+      width: 100%;
+      max-width: 650px;
+      max-height: 90vh;
+      overflow: auto;
+      background: #fff;
+      border-radius: 14px;
+      padding: 14px;
+    }
+    .queue-item, .history-item {
+      background: #f8fafc;
+      border: 1px solid #dce6f1;
+      border-radius: 10px;
+      padding: 9px;
+      margin-top: 8px;
+      font-size: 0.92rem;
+    }
+    .history-details {
+      margin-top: 6px;
+      font-size: 0.85rem;
+      color: #334a62;
+      line-height: 1.5;
+      display: none;
+    }
+
+    .subtle {
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    @media (max-width: 650px) {
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .row > input, .row > select { min-width: 100%; }
+      .title { font-size: 1rem; }
+      .header-top { align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <div class="header-top">
+        <div class="title">מערכת נוכחות מאוחדת (מחשב + טלפון)</div>
+        <div>
+          <button class="btn-soft" onclick="toggleManagement()">הגדרות</button>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat">סה"כ<strong id="allCount">0</strong></div>
+        <div class="stat">נוכחים<strong id="presentCount">0</strong></div>
+        <div class="stat">חסרים<strong id="missingCount">0</strong></div>
+        <div class="stat">לא דווח<strong id="noneCount">0</strong></div>
+      </div>
+    </div>
+
+    <div class="panel management" id="management">
+      <h3 style="margin:0 0 6px;">ניהול נתונים</h3>
+      <div class="subtle">הוספה/עריכה של סד"כ ונמענים לדיווח.</div>
+
+      <h4 style="margin:12px 0 6px;">הוספת חייל</h4>
+      <div class="row">
+        <input id="newName" type="text" placeholder="שם מלא">
+        <input id="newTeam" type="text" placeholder="צוות/מחלקה">
+        <button class="btn-primary" onclick="addPerson()">הוסף</button>
+      </div>
+
+      <h4 style="margin:12px 0 6px;">ניהול נמענים</h4>
+      <div class="row">
+        <input id="recName" type="text" placeholder="שם נמען">
+        <input id="recPhone" type="tel" placeholder="טלפון">
+        <input id="recTeam" type="text" placeholder="צוות ליעד (אופציונלי)">
+        <button class="btn-primary" onclick="addRecipient()">הוסף</button>
+      </div>
+      <div id="recipientsList"></div>
+
+      <h4 style="margin:12px 0 6px;">אפשרויות דוח</h4>
+      <div class="row" style="align-items:center;">
+        <label><input type="checkbox" id="includePresentNames"> לצרף שמות נוכחים</label>
+        <label><input type="checkbox" id="includeExtraNames"> לצרף "לא ביחידה"</label>
+      </div>
+
+      <div class="row" style="margin-top:12px;">
+        <button class="btn-muted" onclick="resetStatuses()">איפוס סטטוסים</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <input id="search" class="search" type="text" placeholder="חיפוש לפי שם או צוות..." oninput="render()">
+      <div class="subtle" style="margin-top:6px;">לחיצה על שם החייל תאפשר עריכה מהירה.</div>
+    </div>
+
+    <div id="list"></div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-inner">
+      <button class="btn-primary full" onclick="openSendQueue()">שלח דיווח ל-WhatsApp</button>
+      <button class="btn-muted" onclick="downloadTxtReport()">הורד TXT</button>
+      <button class="btn-muted" onclick="exportCsvReport()">ייצוא CSV</button>
+      <button class="btn-soft" onclick="openHistoryModal()">היסטוריית ייצוא</button>
+      <button class="btn-soft" onclick="sendDepartmentReport()">דוח מחלקתי</button>
+    </div>
+  </div>
+
+  <div id="sendModal">
+    <div class="modal">
+      <h3 style="margin-top:0;">תור שליחה</h3>
+      <div class="subtle">בחר "שלח" לכל נמען בתור.</div>
+      <div id="queueList"></div>
+      <div class="row" style="margin-top:12px;">
+        <button class="btn-muted" onclick="closeSendModal()">סגור</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="historyModal">
+    <div class="modal">
+      <h3 style="margin-top:0;">היסטוריית ייצוא דוחות</h3>
+      <div class="subtle">נשמרת מקומית במכשיר זה בלבד.</div>
+      <div class="row" style="margin-top:10px;">
+        <button class="btn-muted" onclick="exportHistoryCsv()">ייצא היסטוריה CSV</button>
+        <button class="btn-bad" onclick="clearHistory()">נקה היסטוריה</button>
+        <button class="btn-soft" onclick="closeHistoryModal()">סגור</button>
+      </div>
+      <div id="historyList"></div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEYS = {
+      data: 'attendanceUnifiedDataV1',
+      recipients: 'attendanceUnifiedRecipientsV1',
+      settings: 'attendanceUnifiedSettingsV1',
+      history: 'attendanceUnifiedHistoryV1'
+    };
+
+    const defaultPeople = [
+      'אביב','אופיר','אורי ביידר','אורי כהן','אורי מרציאנו','אושר','איליה','איתי','איתמר','בן','דביר','דניאל','הראל גאוטה',
+      'ולדימיר','חביב','אן','יגל אברהם','יגל שושני','יואב','לירון','מאור שאבי','מתן','נהוראי','נווה','ניב','עמית','עקיבא','קובי','רון','שהם','שיקו הדדי'
+    ];
+
+    let data = JSON.parse(localStorage.getItem(STORAGE_KEYS.data)) || defaultPeople.map((name, i) => ({
+      id: Date.now() + i,
+      name,
+      team: 'כללי',
+      status: 'none'
+    }));
+
+    let recipients = JSON.parse(localStorage.getItem(STORAGE_KEYS.recipients)) || [];
+    let settings = JSON.parse(localStorage.getItem(STORAGE_KEYS.settings)) || { includePresentNames: false, includeExtraNames: false };
+    let history = JSON.parse(localStorage.getItem(STORAGE_KEYS.history)) || [];
+
+    let isManagementOpen = false;
+
+    function saveAll() {
+      localStorage.setItem(STORAGE_KEYS.data, JSON.stringify(data));
+      localStorage.setItem(STORAGE_KEYS.recipients, JSON.stringify(recipients));
+      localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(settings));
+      localStorage.setItem(STORAGE_KEYS.history, JSON.stringify(history));
+      renderRecipients();
+      render();
+    }
+
+    function toggleManagement() {
+      isManagementOpen = !isManagementOpen;
+      document.getElementById('management').style.display = isManagementOpen ? 'block' : 'none';
+    }
+
+    function sanitizePhone(raw) {
+      const digits = (raw || '').replace(/\D/g, '');
+      if (!digits) return '';
+      if (digits.startsWith('972')) return digits;
+      if (digits.startsWith('0')) return '972' + digits.slice(1);
+      return digits;
+    }
+
+    function groupByTeam(items) {
+      const grouped = {};
+      items.forEach((p) => {
+        const teamName = (p.team || 'ללא צוות').trim() || 'ללא צוות';
+        if (!grouped[teamName]) grouped[teamName] = [];
+        grouped[teamName].push(p);
+      });
+      return grouped;
+    }
+
+    function updateStats() {
+      const present = data.filter((p) => p.status === 'present').length;
+      const missing = data.filter((p) => p.status === 'missing').length;
+      const none = data.filter((p) => p.status === 'none').length;
+
+      document.getElementById('allCount').innerText = data.length;
+      document.getElementById('presentCount').innerText = present;
+      document.getElementById('missingCount').innerText = missing;
+      document.getElementById('noneCount').innerText = none;
+    }
+
+    function render() {
+      const list = document.getElementById('list');
+      const query = document.getElementById('search').value.trim().toLowerCase();
+
+      const filtered = data.filter((p) => {
+        const fullText = `${p.name} ${p.team}`.toLowerCase();
+        return fullText.includes(query);
+      });
+
+      const grouped = groupByTeam(filtered);
+      const teamNames = Object.keys(grouped).sort((a, b) => a.localeCompare(b, 'he'));
+
+      list.innerHTML = '';
+      teamNames.forEach((team) => {
+        const members = grouped[team].sort((a, b) => a.name.localeCompare(b.name, 'he'));
+        const presentCount = members.filter((m) => m.status === 'present').length;
+
+        const teamEl = document.createElement('section');
+        teamEl.className = 'team';
+        teamEl.innerHTML = `<div class="team-head"><span>צוות: ${team}</span><span>${presentCount}/${members.length} נוכחים</span></div>`;
+
+        members.forEach((person) => {
+          const row = document.createElement('div');
+          row.className = `person ${person.status || 'none'}`;
+
+          const actions = isManagementOpen
+            ? `<div class="actions">
+                <button class="btn-soft" onclick="editPerson(${person.id})">ערוך</button>
+                <button class="btn-bad" onclick="deletePerson(${person.id})">מחק</button>
+              </div>`
+            : `<div class="actions">
+                <button class="btn-ok" onclick="setStatus(${person.id}, 'present')">V</button>
+                <button class="btn-bad" onclick="setStatus(${person.id}, 'missing')">X</button>
+                <button class="btn-warn" onclick="setStatus(${person.id}, 'extra')">?</button>
+                <button class="btn-soft" onclick="setStatus(${person.id}, 'none')">0</button>
+              </div>`;
+
+          row.innerHTML = `<div class="person-name" onclick="editPerson(${person.id})">${person.name}<div class="subtle">${person.team || 'ללא צוות'}</div></div>${actions}`;
+          teamEl.appendChild(row);
+        });
+
+        list.appendChild(teamEl);
+      });
+
+      updateStats();
+    }
+
+    function setStatus(id, status) {
+      const person = data.find((p) => p.id === id);
+      if (!person) return;
+      person.status = status;
+      saveAll();
+    }
+
+    function addPerson() {
+      const nameInput = document.getElementById('newName');
+      const teamInput = document.getElementById('newTeam');
+      const name = nameInput.value.trim();
+      const team = teamInput.value.trim() || 'ללא צוות';
+      if (!name) {
+        alert('יש להזין שם.');
+        return;
+      }
+      data.push({ id: Date.now(), name, team, status: 'none' });
+      nameInput.value = '';
+      teamInput.value = '';
+      saveAll();
+    }
+
+    function editPerson(id) {
+      const person = data.find((p) => p.id === id);
+      if (!person) return;
+      const newName = prompt('עריכת שם:', person.name);
+      if (newName === null) return;
+      const trimmedName = newName.trim();
+      if (!trimmedName) return alert('שם לא יכול להיות ריק.');
+      const newTeam = prompt('עריכת צוות:', person.team || 'ללא צוות');
+      if (newTeam === null) return;
+      person.name = trimmedName;
+      person.team = newTeam.trim() || 'ללא צוות';
+      saveAll();
+    }
+
+    function deletePerson(id) {
+      const person = data.find((p) => p.id === id);
+      if (!person) return;
+      if (!confirm(`למחוק את ${person.name}?`)) return;
+      data = data.filter((p) => p.id !== id);
+      saveAll();
+    }
+
+    function addRecipient() {
+      const nameInput = document.getElementById('recName');
+      const phoneInput = document.getElementById('recPhone');
+      const teamInput = document.getElementById('recTeam');
+
+      const name = nameInput.value.trim();
+      const phone = sanitizePhone(phoneInput.value);
+      const team = teamInput.value.trim();
+
+      if (!name || !phone) {
+        alert('יש להזין שם וטלפון.');
+        return;
+      }
+
+      recipients.push({ id: Date.now(), name, phone, team });
+      nameInput.value = '';
+      phoneInput.value = '';
+      teamInput.value = '';
+      saveAll();
+    }
+
+    function deleteRecipient(id) {
+      recipients = recipients.filter((r) => r.id !== id);
+      saveAll();
+    }
+
+    function renderRecipients() {
+      const container = document.getElementById('recipientsList');
+      container.innerHTML = '';
+      recipients.forEach((r) => {
+        const item = document.createElement('div');
+        item.className = 'recipient-item';
+        item.innerHTML = `<div><strong>${r.name}</strong> <span class="subtle">${r.phone}${r.team ? ` | צוות ${r.team}` : ''}</span></div>
+        <button class="btn-bad" onclick="deleteRecipient(${r.id})">מחק</button>`;
+        container.appendChild(item);
+      });
+    }
+
+    function resetStatuses() {
+      if (!confirm('לאפס את כל הסטטוסים ל"לא דווח"?')) return;
+      data.forEach((p) => p.status = 'none');
+      saveAll();
+    }
+
+    function getSnapshot() {
+      const present = data.filter((p) => p.status === 'present').map((p) => p.name);
+      const missing = data.filter((p) => p.status === 'missing').map((p) => p.name);
+      const extra = data.filter((p) => p.status === 'extra').map((p) => p.name);
+      const none = data.filter((p) => p.status === 'none').map((p) => p.name);
+      return { present, missing, extra, none };
+    }
+
+    function generateReportText(options = {}) {
+      const { includePresentNames, includeExtraNames } = options;
+      const snapshot = getSnapshot();
+      const now = new Date();
+      const date = now.toLocaleDateString('he-IL');
+      const time = now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+      let txt = `*דוח נוכחות - ${date} ${time}*\n`;
+      txt += `✅ נוכחים: ${snapshot.present.length}\n`;
+      if (includePresentNames && snapshot.present.length) txt += `(${snapshot.present.join(', ')})\n`;
+      txt += `❌ חסרים: ${snapshot.missing.length}\n`;
+      if (snapshot.missing.length) txt += `${snapshot.missing.join(', ')}\n`;
+      txt += `❓ לא ביחידה: ${snapshot.extra.length}\n`;
+      if (includeExtraNames && snapshot.extra.length) txt += `${snapshot.extra.join(', ')}\n`;
+      txt += `⚪ לא דווח: ${snapshot.none.length}`;
+      return { text: txt, snapshot };
+    }
+
+    function addHistory(type, extra = {}) {
+      const now = new Date();
+      const { text, snapshot } = generateReportText(settings);
+      const entry = {
+        id: now.getTime(),
+        timeIso: now.toISOString(),
+        timeLocal: now.toLocaleString('he-IL'),
+        type,
+        targets: extra.targets || '',
+        fileName: extra.fileName || '',
+        present: snapshot.present,
+        missing: snapshot.missing,
+        extra: snapshot.extra,
+        none: snapshot.none,
+        reportText: text
+      };
+      history.unshift(entry);
+      if (history.length > 300) history = history.slice(0, 300);
+      localStorage.setItem(STORAGE_KEYS.history, JSON.stringify(history));
+    }
+
+    function downloadTxtReport() {
+      settings.includePresentNames = document.getElementById('includePresentNames').checked;
+      settings.includeExtraNames = document.getElementById('includeExtraNames').checked;
+
+      const { text } = generateReportText(settings);
+      const cleanText = text.replace(/\*/g, '');
+      const fileName = `attendance_${new Date().toISOString().slice(0, 10)}.txt`;
+      const blob = new Blob([cleanText], { type: 'text/plain;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = fileName;
+      link.click();
+      URL.revokeObjectURL(link.href);
+
+      addHistory('download_txt', { fileName });
+      renderHistory();
+    }
+
+    function exportCsvReport() {
+      const statusMap = { present: 'נוכח', missing: 'חסר', extra: 'לא ביחידה', none: 'לא דווח' };
+      let csv = '\uFEFFשם,צוות,סטטוס\n';
+      data.forEach((p) => {
+        csv += `"${p.name.replace(/"/g, '""')}","${(p.team || '').replace(/"/g, '""')}","${statusMap[p.status] || 'לא דווח'}"\n`;
+      });
+
+      const fileName = `attendance_${new Date().toISOString().slice(0, 10)}.csv`;
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = fileName;
+      link.click();
+      URL.revokeObjectURL(link.href);
+
+      addHistory('export_csv', { fileName });
+      renderHistory();
+    }
+
+    function recipientReportText(recipient) {
+      if (!recipient.team) {
+        return generateReportText(settings).text;
+      }
+
+      const members = data.filter((p) => (p.team || '').trim() === recipient.team.trim());
+      const present = members.filter((p) => p.status === 'present').map((p) => p.name);
+      const missing = members.filter((p) => p.status === 'missing').map((p) => p.name);
+      const extra = members.filter((p) => p.status === 'extra').map((p) => p.name);
+      const none = members.filter((p) => p.status === 'none').map((p) => p.name);
+
+      let txt = `*דוח צוות ${recipient.team}*\n`;
+      txt += `✅ נוכחים: ${present.length}\n`;
+      if (settings.includePresentNames && present.length) txt += `(${present.join(', ')})\n`;
+      txt += `❌ חסרים: ${missing.length}\n`;
+      if (missing.length) txt += `${missing.join(', ')}\n`;
+      txt += `❓ לא ביחידה: ${extra.length}\n`;
+      if (settings.includeExtraNames && extra.length) txt += `${extra.join(', ')}\n`;
+      txt += `⚪ לא דווח: ${none.length}`;
+      return txt;
+    }
+
+    function openSendQueue() {
+      if (!recipients.length) {
+        alert('לא הוגדרו נמענים.');
+        return;
+      }
+      settings.includePresentNames = document.getElementById('includePresentNames').checked;
+      settings.includeExtraNames = document.getElementById('includeExtraNames').checked;
+
+      const queue = document.getElementById('queueList');
+      queue.innerHTML = '';
+
+      recipients.forEach((r) => {
+        const msg = recipientReportText(r);
+        const item = document.createElement('div');
+        item.className = 'queue-item';
+        item.innerHTML = `<div><strong>${r.name}</strong> <span class="subtle">${r.phone}${r.team ? ` | צוות ${r.team}` : ''}</span></div>
+        <button class="btn-primary" onclick="sendToWhatsapp('${r.phone}','${encodeURIComponent(msg)}','${r.name}', this)">שלח</button>`;
+        queue.appendChild(item);
+      });
+
+      document.getElementById('sendModal').style.display = 'flex';
+    }
+
+    function sendToWhatsapp(phone, encodedMessage, recipientName, button) {
+      const finalPhone = sanitizePhone(phone);
+      window.open(`https://wa.me/${finalPhone}?text=${encodedMessage}`, '_blank');
+      button.textContent = 'נפתח';
+      button.disabled = true;
+      addHistory('send_whatsapp', { targets: recipientName });
+    }
+
+    function sendDepartmentReport() {
+      settings.includePresentNames = document.getElementById('includePresentNames').checked;
+      settings.includeExtraNames = document.getElementById('includeExtraNames').checked;
+      const { text } = generateReportText(settings);
+      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+      addHistory('send_department_report', { targets: 'כללי' });
+      renderHistory();
+    }
+
+    function closeSendModal() {
+      document.getElementById('sendModal').style.display = 'none';
+    }
+
+    function openHistoryModal() {
+      renderHistory();
+      document.getElementById('historyModal').style.display = 'flex';
+    }
+
+    function closeHistoryModal() {
+      document.getElementById('historyModal').style.display = 'none';
+    }
+
+    function typeLabel(type) {
+      const map = {
+        download_txt: 'הורדת TXT',
+        export_csv: 'ייצוא CSV',
+        send_whatsapp: 'שליחה לנמען',
+        send_department_report: 'דוח מחלקתי'
+      };
+      return map[type] || type;
+    }
+
+    function toggleHistoryDetails(id) {
+      const box = document.getElementById(`details-${id}`);
+      box.style.display = box.style.display === 'block' ? 'none' : 'block';
+    }
+
+    function renderHistory() {
+      const list = document.getElementById('historyList');
+      list.innerHTML = '';
+      if (!history.length) {
+        list.innerHTML = '<div class="history-item">אין היסטוריה עדיין.</div>';
+        return;
+      }
+
+      history.forEach((h) => {
+        const item = document.createElement('div');
+        item.className = 'history-item';
+        item.innerHTML = `<div style="display:flex; justify-content:space-between; gap:8px; align-items:center;">
+          <div><strong>${typeLabel(h.type)}</strong> <span class="subtle">${h.timeLocal}</span><div class="subtle">יעד: ${h.targets || '-'} ${h.fileName ? `| קובץ: ${h.fileName}` : ''}</div></div>
+          <button class="btn-soft" onclick="toggleHistoryDetails(${h.id})">פירוט</button>
+        </div>
+        <div id="details-${h.id}" class="history-details">
+          <div>נוכחים (${h.present.length}): ${h.present.join(', ') || '-'}</div>
+          <div>חסרים (${h.missing.length}): ${h.missing.join(', ') || '-'}</div>
+          <div>לא ביחידה (${h.extra.length}): ${h.extra.join(', ') || '-'}</div>
+          <div>לא דווח (${h.none.length}): ${h.none.join(', ') || '-'}</div>
+        </div>`;
+        list.appendChild(item);
+      });
+    }
+
+    function clearHistory() {
+      if (!confirm('למחוק את כל היסטוריית הייצוא?')) return;
+      history = [];
+      localStorage.setItem(STORAGE_KEYS.history, JSON.stringify(history));
+      renderHistory();
+    }
+
+    function exportHistoryCsv() {
+      if (!history.length) {
+        alert('אין היסטוריה לייצוא.');
+        return;
+      }
+
+      let csv = '\uFEFFתאריך ושעה,סוג פעולה,יעד,קובץ,נוכחים,חסרים,לא ביחידה,לא דווח\n';
+      history.forEach((h) => {
+        const row = [
+          h.timeLocal,
+          typeLabel(h.type),
+          h.targets || '',
+          h.fileName || '',
+          (h.present || []).join(' | '),
+          (h.missing || []).join(' | '),
+          (h.extra || []).join(' | '),
+          (h.none || []).join(' | ')
+        ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',');
+        csv += row + '\n';
+      });
+
+      const fileName = `attendance_history_${new Date().toISOString().slice(0, 10)}.csv`;
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = fileName;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }
+
+    function initSettings() {
+      const includePresent = document.getElementById('includePresentNames');
+      const includeExtra = document.getElementById('includeExtraNames');
+      includePresent.checked = !!settings.includePresentNames;
+      includeExtra.checked = !!settings.includeExtraNames;
+      includePresent.addEventListener('change', () => {
+        settings.includePresentNames = includePresent.checked;
+        localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(settings));
+      });
+      includeExtra.addEventListener('change', () => {
+        settings.includeExtraNames = includeExtra.checked;
+        localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(settings));
+      });
+    }
+
+    initSettings();
+    saveAll();
+  </script>
+</body>
+</html>

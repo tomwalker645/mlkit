@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ניהול נוכחות - רשימת תפוצה</title>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; background: #eef2f3; margin: 0; padding: 10px; color: #333; }
+        .header { background: #004a99; color: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; position: sticky; top: 0; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; text-align: center; margin-top: 10px; }
+        .stat-card { background: rgba(255,255,255,0.1); padding: 8px; border-radius: 8px; font-size: 0.85em; }
+        .stat-num { display: block; font-size: 1.4em; font-weight: bold; }
+        
+        .management-section { background: #fff; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px dashed #004a99; display: none; }
+        .item-row { display: flex; gap: 5px; margin-top: 5px; margin-bottom: 10px; }
+        input { padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 1em; }
+        
+        .person-card { background: white; padding: 12px; border-radius: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .name { font-weight: bold; font-size: 1.1em; }
+        
+        .btn-group { display: flex; gap: 5px; }
+        button { border: none; padding: 10px 14px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .v-btn { background: #28a745; color: white; }
+        .x-btn { background: #dc3545; color: white; }
+        .q-btn { background: #ffc107; color: black; }
+        
+        .recipient-selector { background: #fff; padding: 12px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #ddd; }
+        .recipient-checkbox { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; font-weight: bold; }
+
+        .wa-btn { background: #25D366; color: white; padding: 15px; font-size: 1.1em; width: 100%; margin-bottom: 10px; }
+        
+        .status-present { border-right: 10px solid #28a745; background: #f0fff4; }
+        .status-missing { border-right: 10px solid #dc3545; background: #fff5f5; }
+        .status-extra { border-right: 10px solid #ffc107; background: #fffdf0; }
+
+        .footer-btns { margin-top: 20px; padding-bottom: 40px; }
+        .secondary-btns { display: flex; gap: 8px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-weight:bold;">ניהול נוכחות</span>
+        <button id="toggleEdit" onclick="toggleManagement()" style="background:#fff; color:#004a99; padding:5px 12px; border-radius:6px;">הגדרות</button>
+    </div>
+    <div class="stats-grid">
+        <div class="stat-card">נוכחים<span id="p-count" class="stat-num">0</span></div>
+        <div class="stat-card">חסרים<span id="m-count" class="stat-num">0</span></div>
+        <div class="stat-card">זרים<span id="e-count" class="stat-num">0</span></div>
+    </div>
+</div>
+
+<div id="management" class="management-section">
+    <h4 style="margin-top:0;">👥 ניהול רשימת תפוצה (נמעני הדיווח)</h4>
+    <div class="item-row">
+        <input type="text" id="recipName" style="flex:1" placeholder="שם (למשל: מפקד)">
+        <input type="tel" id="recipPhone" style="flex:1" placeholder="טלפון">
+        <button style="background:#28a745; color:white;" onclick="addRecipient()">+</button>
+    </div>
+    <div id="recipientsList" style="margin-bottom:20px; font-size:0.9em;"></div>
+
+    <hr>
+    <h4>👤 הוספת חייל לרשימה</h4>
+    <div class="item-row">
+        <input type="text" id="newName" style="flex:1" placeholder="שם מלא...">
+        <button style="background:#004a99; color:white;" onclick="addPerson()">הוסף</button>
+    </div>
+</div>
+
+<input type="text" id="search" style="width:100%; box-sizing:border-box; padding:12px; border:2px solid #004a99; border-radius:8px; margin-bottom:10px;" placeholder="חיפוש מהיר..." onkeyup="filter()">
+
+<div id="list"></div>
+
+<div class="footer-btns">
+    <div class="recipient-selector">
+        <div style="font-size:0.8em; color:gray; margin-bottom:8px;">שלח דיווח אל:</div>
+        <div id="sendCheckboxes"></div>
+    </div>
+
+    <button class="wa-btn" onclick="startSendingProcess()">שלח דוח ל-WhatsApp</button>
+    
+    <div class="secondary-btns">
+        <button style="background:#6c757d; color:white; flex:1;" onclick="resetStatuses()">איפוס נוכחות</button>
+        <button style="background:#17a2b8; color:white; flex:1;" onclick="exportData()">קובץ טקסט</button>
+    </div>
+</div>
+
+<script>
+    const initialNames = ["אביב", "אופיר", "אורי ביידר", "אורי כהן", "אורי מרציאנו", "אושר", "איליה", "איתי", "איתמר", "בן", "דביר", "דניאל", "הראל גאוטה", "ולדימיר", "חביב", "אן", "יגל אברהם", "יגל שושני", "יואב", "יואב", "לירון", "מאור שאבי", "מתן", "מתן", "נהוראי", "נווה", "ניב", "עמית", "עקיבא", "קובי", "רון", "שהם", "שיקו הדדי"];
+
+    let data = JSON.parse(localStorage.getItem('myDepartmentList')) || initialNames.sort().map((n, i) => ({ id: Date.now() + i, name: n, status: 'none' }));
+    let recipients = JSON.parse(localStorage.getItem('reportRecipients')) || [];
+    
+    let isManagementMode = false;
+
+    function save() {
+        localStorage.setItem('myDepartmentList', JSON.stringify(data));
+        localStorage.setItem('reportRecipients', JSON.stringify(recipients));
+        render();
+        renderRecipients();
+    }
+
+    function renderRecipients() {
+        const listDiv = document.getElementById('recipientsList');
+        const checkDiv = document.getElementById('sendCheckboxes');
+        listDiv.innerHTML = '';
+        checkDiv.innerHTML = '';
+
+        if(recipients.length === 0) {
+            listDiv.innerHTML = '<span style="color:red">אין נמענים שמורים.</span>';
+            checkDiv.innerHTML = '<span style="color:red">הוסף נמענים בהגדרות כדי לשלוח.</span>';
+            return;
+        }
+
+        recipients.forEach((r, i) => {
+            // רשימה בניהול
+            listDiv.innerHTML += `<div class="item-row" style="background:#f9f9f9; padding:5px; border-radius:5px; align-items:center;">
+                <span style="flex:1"><b>${r.name}</b> (${r.phone})</span>
+                <button style="background:black; color:white; padding:5px 10px;" onclick="deleteRecipient(${i})">מחק</button>
+            </div>`;
+
+            // צ'קבוקסים במסך ראשי
+            checkDiv.innerHTML += `<label class="recipient-checkbox">
+                <input type="checkbox" checked class="target-recip" value="${r.phone}"> ${r.name}
+            </label>`;
+        });
+    }
+
+    function addRecipient() {
+        const name = document.getElementById('recipName').value;
+        const phone = document.getElementById('recipPhone').value;
+        if(!name || !phone) return;
+        recipients.push({ name, phone });
+        document.getElementById('recipName').value = '';
+        document.getElementById('recipPhone').value = '';
+        save();
+    }
+
+    function deleteRecipient(index) {
+        recipients.splice(index, 1);
+        save();
+    }
+
+    function render() {
+        const container = document.getElementById('list');
+        container.innerHTML = '';
+        let p=0, m=0, e=0;
+
+        data.forEach(item => {
+            if(item.status==='present') p++;
+            if(item.status==='missing') m++;
+            if(item.status==='extra') e++;
+            const div = document.createElement('div');
+            div.className = `person-card status-${item.status}`;
+            let actions = `<div class="btn-group">
+                <button class="v-btn" onclick="updateStatus(${item.id}, 'present')">V</button>
+                <button class="x-btn" onclick="updateStatus(${item.id}, 'missing')">X</button>
+                <button class="q-btn" onclick="updateStatus(${item.id}, 'extra')">?</button>
+            </div>`;
+            if(isManagementMode) actions = `<div class="btn-group">
+                <button style="background:#6c757d; color:white;" onclick="editPerson(${item.id})">ערוך</button>
+                <button style="background:black; color:white;" onclick="deletePerson(${item.id})">מחק</button>
+            </div>`;
+            div.innerHTML = `<div class="name">${item.name}</div>${actions}`;
+            container.appendChild(div);
+        });
+        document.getElementById('p-count').innerText = p;
+        document.getElementById('m-count').innerText = m;
+        document.getElementById('e-count').innerText = e;
+    }
+
+    function updateStatus(id, status) { data.find(x => x.id === id).status = status; save(); }
+    
+    function toggleManagement() {
+        isManagementMode = !isManagementMode;
+        document.getElementById('management').style.display = isManagementMode ? 'block' : 'none';
+        document.getElementById('toggleEdit').innerText = isManagementMode ? "חזור" : "הגדרות";
+        render();
+    }
+
+    function startSendingProcess() {
+        const selectedPhones = Array.from(document.querySelectorAll('.target-recip:checked')).map(cb => cb.value);
+        if(selectedPhones.length === 0) {
+            alert("אנא בחר לפחות נמען אחד לשליחה.");
+            return;
+        }
+
+        const report = generateReportText();
+        
+        // שליחה לנמען הראשון
+        sendToWhatsApp(selectedPhones[0], report);
+
+        // אם יש עוד נמענים, נציג הודעה למשתמש להמשך שליחה
+        if(selectedPhones.length > 1) {
+            setTimeout(() => {
+                alert(`הדיווח הראשון נפתח. כשתחזור לכאן, נפתח את הדיווח עבור ${selectedPhones.length - 1} הנמענים הנוספים שסימנת.`);
+                // כאן אפשר להוסיף לוגיקה שפותחת את הבא בתור, אבל עדיף לתת למשתמש לשלוט בזה כדי שהדפדפן לא יחסום.
+            }, 1000);
+        }
+    }
+
+    function sendToWhatsApp(phone, message) {
+        const cleanPhone = phone.replace(/\D/g,'');
+        const finalPhone = cleanPhone.startsWith('0') ? '972' + cleanPhone.substring(1) : cleanPhone;
+        const url = `https://wa.me/${finalPhone}?text=${encodeURIComponent(message)}`;
+        window.open(url, '_blank');
+    }
+
+    function generateReportText() {
+        let txt = `*דוח נוכחות - ${new Date().toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'})}*\n`;
+        txt += `✅ נוכחים: ${data.filter(x=>x.status==='present').length}\n`;
+        txt += `❌ חסרים: ${data.filter(x=>x.status==='missing').length}\n\n`;
+        const missing = data.filter(x=>x.status==='missing');
+        if(missing.length > 0) {
+            txt += `*פירוט חסרים:*\n`;
+            missing.forEach(x => txt += `- ${x.name}\n`);
+        } else { txt += `*כולם נוכחים!*`; }
+        return txt;
+    }
+
+    // פונקציות עזר קיימות
+    function addPerson() { const n = document.getElementById('newName'); if(!n.value) return; data.push({id:Date.now(), name:n.value, status:'none'}); data.sort((a,b)=>a.name.localeCompare(b.name)); n.value=''; save(); }
+    function deletePerson(id) { if(confirm("למחוק?")) { data = data.filter(x=>x.id!==id); save(); } }
+    function editPerson(id) { const p = data.find(x=>x.id===id); const n = prompt("שם חדש:", p.name); if(n) { p.name=n; save(); } }
+    function resetStatuses() { if(confirm("לאפס הכל?")) { data.forEach(x=>x.status='none'); save(); } }
+    function filter() { const v = document.getElementById('search').value.toLowerCase(); document.querySelectorAll('.person-card').forEach(c => { c.style.display = c.querySelector('.name').innerText.toLowerCase().includes(v) ? 'flex' : 'none'; }); }
+    function exportData() { const txt = generateReportText(); const blob = new Blob(["\uFEFF" + txt], { type: 'text/plain;charset=utf-8' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = "report.txt"; a.click(); }
+
+    render();
+    renderRecipients();
+</script>
+</body>
+</html>

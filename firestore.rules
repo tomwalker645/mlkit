@@ -1,0 +1,131 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function hasUserDoc() {
+      return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function sameCompanyResource() {
+      return hasUserDoc() && resource.data.companyCode == userDoc().data.companyCode;
+    }
+
+    function sameCompanyRequest() {
+      return hasUserDoc() && request.resource.data.companyCode == userDoc().data.companyCode;
+    }
+
+    function isCompanyCommander() {
+      return hasUserDoc() && userDoc().data.role == "company_commander";
+    }
+
+    function isPlatoonCommander() {
+      return hasUserDoc() && userDoc().data.role == "platoon_commander";
+    }
+
+    function isClassCommander() {
+      return hasUserDoc() && userDoc().data.role == "class_commander";
+    }
+
+    function isSoldierReporter() {
+      return hasUserDoc() && userDoc().data.role == "soldier_reporter";
+    }
+
+    function isPlatoonScopeRole() {
+      return isPlatoonCommander() || isClassCommander() || isSoldierReporter();
+    }
+
+    function canViewCompany() {
+      return hasUserDoc() && (userDoc().data.role == "company_commander" || userDoc().data.canViewAll == true);
+    }
+
+    match /users/{uid} {
+      allow create: if signedIn() && request.auth.uid == uid;
+      allow read: if signedIn() && (
+        request.auth.uid == uid ||
+        sameCompanyResource()
+      );
+      allow update: if signedIn() && (
+        request.auth.uid == uid ||
+        (isCompanyCommander() && sameCompanyResource())
+      );
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /companies/{companyCode} {
+      allow create: if signedIn();
+      allow read: if hasUserDoc() && userDoc().data.companyCode == companyCode;
+      allow update, delete: if isCompanyCommander() && userDoc().data.companyCode == companyCode;
+    }
+
+    match /platoons/{id} {
+      allow read: if sameCompanyResource();
+
+      allow create: if signedIn() && (
+        (hasUserDoc() && isCompanyCommander() && sameCompanyRequest()) ||
+        (!hasUserDoc() && request.resource.data.commanderUid == request.auth.uid)
+      );
+
+      allow update, delete: if sameCompanyResource() && (
+        isCompanyCommander() ||
+        (isPlatoonCommander() && userDoc().data.platoonId == id)
+      );
+    }
+
+    match /teams/{id} {
+      allow read: if sameCompanyResource();
+      allow create: if sameCompanyRequest() && (
+        isCompanyCommander() ||
+        (isPlatoonScopeRole() && request.resource.data.platoonId == userDoc().data.platoonId)
+      );
+      allow update, delete: if sameCompanyResource() && (
+        isCompanyCommander() ||
+        (isPlatoonScopeRole() && resource.data.platoonId == userDoc().data.platoonId)
+      );
+    }
+
+    match /soldiers/{id} {
+      allow read: if sameCompanyResource();
+      allow create: if sameCompanyRequest() && (
+        isCompanyCommander() ||
+        (isPlatoonScopeRole() && request.resource.data.platoonId == userDoc().data.platoonId)
+      );
+      allow update, delete: if sameCompanyResource() && (
+        isCompanyCommander() ||
+        (isPlatoonScopeRole() && resource.data.platoonId == userDoc().data.platoonId)
+      );
+    }
+
+    match /reports/{id} {
+      allow read: if sameCompanyResource() && (
+        canViewCompany() ||
+        (isPlatoonScopeRole() && resource.data.platoonId == userDoc().data.platoonId)
+      );
+
+      allow create: if sameCompanyRequest() && (
+        isCompanyCommander() ||
+        (isPlatoonScopeRole() && request.resource.data.platoonId == userDoc().data.platoonId)
+      );
+
+      allow update, delete: if false;
+    }
+
+    match /activeSessions/{id} {
+      allow read: if signedIn() && resource.data.uid == request.auth.uid;
+      allow create, update: if signedIn() && request.resource.data.uid == request.auth.uid;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    match /appMeta/{id} {
+      allow read: if signedIn();
+      allow write: if isCompanyCommander();
+    }
+  }
+}
+
