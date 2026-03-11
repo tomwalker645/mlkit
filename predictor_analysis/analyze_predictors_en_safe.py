@@ -306,6 +306,13 @@ def print_safe(text):
 
 
 def main():
+    # Force UTF-8 output so Hebrew characters are preserved correctly when
+    # output is redirected to a file on Windows (where the default is CP1252).
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
     parser = argparse.ArgumentParser(
         description="Analyze rocket alert Telegram export and find settlement predictors."
     )

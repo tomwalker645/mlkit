@@ -22,8 +22,11 @@ Hebrew rocket-alert messages and produces two tables:
 ```powershell
 cd "C:\Users\User\Downloads"
 py analyze_predictors_en_safe.py --input result_filtered.json --target AUTO_BEIT_HAG --min-volume 20 > output.txt 2>&1
-type output.txt
+notepad output.txt
 ```
+
+> **Note:** Do not use `type output.txt` — it does not display Hebrew correctly.
+> Open `output.txt` with Notepad (`notepad output.txt`) or drag it into VSCode/Notepad++.
 
 ---
 

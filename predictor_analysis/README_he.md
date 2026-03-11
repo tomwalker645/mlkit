@@ -41,8 +41,11 @@
 ```powershell
 cd "C:\Users\User\Downloads"
 py analyze_predictors_en_safe.py --input result_filtered.json --target AUTO_BEIT_HAG --min-volume 20 > output.txt 2>&1
-type output.txt
+notepad output.txt
 ```
+
+> **שים לב:** אל תשתמש ב-`type output.txt` — הפקודה הזו לא מציגה נכון טקסט בעברית.  
+> במקום זה פתח את `output.txt` ב-Notepad עם `notepad output.txt`, או פשוט גרור את הקובץ ל-Notepad/VSCode.
 
 ---
 
