@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ניהול מחלקה - דוח שמי ואקסל</title>
+    <style>
+        :root { --primary: #004a99; --success: #28a745; --danger: #dc3545; --warning: #ffc107; --dark: #343a40; --excel: #1d6f42; }
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background: #f4f7f6; margin: 0; padding: 10px; color: #333; padding-bottom: 240px; }
+        
+        .header { background: var(--primary); color: white; padding: 15px; border-radius: 15px; margin-bottom: 15px; position: sticky; top: 5px; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center; margin-top: 10px; }
+        .stat-card { background: rgba(255,255,255,0.15); padding: 8px; border-radius: 10px; }
+        .stat-num { display: block; font-size: 1.4em; font-weight: bold; }
+
+        .management-section { background: #fff; padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 2px dashed var(--primary); display: none; }
+        .item-row { display: flex; gap: 5px; margin-bottom: 8px; flex-wrap: wrap; }
+        input { padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; flex: 1; min-width: 70px; }
+        
+        .team-group { margin-top: 25px; background: white; border-radius: 15px; padding: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .team-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; margin-bottom: 10px; padding-bottom: 5px; }
+        .team-title { background: var(--primary); color: white; padding: 4px 12px; border-radius: 10px; font-weight: bold; }
+
+        .person-card { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #f0f0f0; border-right: 6px solid #ccc; margin-bottom: 5px; border-radius: 4px; }
+        .status-present { border-right-color: var(--success); background: #f0fff4; }
+        .status-missing { border-right-color: var(--danger); background: #fff5f5; }
+        .status-extra { border-right-color: var(--warning); background: #fffdf0; }
+        
+        .btn-group { display: flex; gap: 4px; }
+        button { border: none; padding: 10px 14px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.1s; }
+        button:active { transform: scale(0.92); }
+        .v-btn { background: var(--success); color: white; }
+        .x-btn { background: var(--danger); color: white; }
+        .q-btn { background: var(--warning); color: black; }
+        
+        .footer-controls { position: fixed; bottom: 0; left: 0; width: 100%; background: white; padding: 15px; box-shadow: 0 -5px 20px rgba(0,0,0,0.1); border-radius: 20px 20px 0 0; box-sizing: border-box; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+        .wa-btn { background: #25D366; color: white; font-size: 1em; padding: 15px; grid-column: span 3; border-radius: 12px; }
+        .secondary-btn { background: #555; color: white; padding: 10px; border-radius: 10px; font-size: 0.85em; }
+        .excel-btn { background: var(--excel); color: white; padding: 10px; border-radius: 10px; font-size: 0.85em; }
+
+        #sendModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 2000; justify-content: center; align-items: center; }
+        .modal-content { background: white; width: 90%; max-width: 420px; padding: 20px; border-radius: 20px; max-height: 80vh; overflow-y: auto; }
+        .queue-item { background: #f8f9fa; border: 1px solid #ddd; padding: 12px; margin-bottom: 10px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-weight: bold; font-size: 1.1em;">ניהול מחלקה וצוותים</span>
+        <div>
+            <button onclick="resetAll()" style="background:rgba(255,255,255,0.2); color:white; padding:5px 10px; font-size: 0.8em;">איפוס</button>
+            <button onclick="toggleManagement()" style="background:#fff; color:var(--primary); padding:5px 10px; font-size: 0.8em;">הגדרות</button>
+        </div>
+    </div>
+    <div class="stats-grid">
+        <div class="stat-card">נוכחים<span id="p-count" class="stat-num">0</span></div>
+        <div class="stat-card">חסרים<span id="m-count" class="stat-num">0</span></div>
+        <div class="stat-card">לא ביחידה<span id="e-count" class="stat-num">0</span></div>
+    </div>
+</div>
+
+<div id="management" class="management-section">
+    <h4>👥 מפקדי צוותים (ר"צים)</h4>
+    <div class="item-row">
+        <input type="text" id="recipName" placeholder="שם ר''צ">
+        <input type="tel" id="recipPhone" placeholder="טלפון">
+        <input type="text" id="recipTeam" placeholder="צוות">
+        <button class="v-btn" onclick="addRecipient()">+</button>
+    </div>
+    <div id="recipientsList" style="margin-bottom:15px; font-size: 0.85em;"></div>
+    <hr>
+    <h4>👤 הוספת חייל</h4>
+    <div class="item-row">
+        <input type="text" id="newName" placeholder="שם מלא">
+        <input type="text" id="newTeam" placeholder="מס' צוות">
+        <button class="v-btn" onclick="addPerson()">הוסף</button>
+    </div>
+</div>
+
+<input type="text" id="search" style="margin-bottom:15px; width:100%; box-sizing: border-box;" placeholder="🔍 חיפוש שם או צוות..." onkeyup="filter()">
+
+<div id="list"></div>
+
+<div class="footer-controls">
+    <button class="wa-btn" onclick="openSendQueue()">🚀 שלח דיווחים לכל הר"צים</button>
+    <button class="secondary-btn" onclick="sendFullReport()">📱 דוח מ"פ</button>
+    <button class="secondary-btn" onclick="downloadReport()">💾 קובץ TXT</button>
+    <button class="excel-btn" onclick="exportToExcel()">📊 אקסל (CSV)</button>
+</div>
+
+<div id="sendModal">
+    <div class="modal-content">
+        <h3 style="margin-top:0;">תחנת שליחה רציפה</h3>
+        <p style="font-size: 0.9em; color: #666;">לחץ על כל כפתור לפי הסדר.</p>
+        <div id="queueList"></div>
+        <button style="background:var(--dark); color:white; width:100%; margin-top:15px; padding:12px; border-radius:10px;" onclick="closeModal()">סיום וסגירה</button>
+    </div>
+</div>
+
+<script>
+    let data = JSON.parse(localStorage.getItem('deptDataV3')) || [];
+    let recipients = JSON.parse(localStorage.getItem('deptRecipsV3')) || [];
+    let isManagementMode = false;
+
+    function save() {
+        localStorage.setItem('deptDataV3', JSON.stringify(data));
+        localStorage.setItem('deptRecipsV3', JSON.stringify(recipients));
+        render();
+        renderRecipients();
+    }
+
+    function renderRecipients() {
+        const listDiv = document.getElementById('recipientsList');
+        listDiv.innerHTML = '';
+        recipients.forEach((r, i) => {
+            listDiv.innerHTML += `<div class="item-row" style="background:#f9f9f9; padding:5px; border-radius:5px; justify-content: space-between; align-items:center;">
+                <span><b>${r.name}</b> (צוות ${r.team})</span>
+                <button style="background:#ff4444; color:white; padding:2px 8px; font-size:10px;" onclick="deleteRecipient(${i})">מחק</button>
+            </div>`;
+        });
+    }
+
+    function render() {
+        const container = document.getElementById('list');
+        container.innerHTML = '';
+        const teams = [...new Set(data.map(item => item.team))].sort();
+        let pTotal=0, mTotal=0, eTotal=0;
+
+        teams.forEach(teamName => {
+            const teamDiv = document.createElement('div');
+            teamDiv.className = 'team-group';
+            const teamMembers = data.filter(x => x.team === teamName);
+            const teamP = teamMembers.filter(x=>x.status==='present').length;
+            teamDiv.innerHTML = `<div class="team-header"><span class="team-title">צוות ${teamName}</span><span style="font-size:0.8em; color:#666;">נוכחים: ${teamP}/${teamMembers.length}</span></div>`;
+            teamMembers.forEach(item => {
+                if(item.status==='present') pTotal++;
+                if(item.status==='missing') mTotal++;
+                if(item.status==='extra') eTotal++;
+                const card = document.createElement('div');
+                card.className = `person-card status-${item.status}`;
+                let actions = `<div class="btn-group"><button class="v-btn" onclick="updateStatus(${item.id}, 'present')">V</button><button class="x-btn" onclick="updateStatus(${item.id}, 'missing')">X</button><button class="q-btn" onclick="updateStatus(${item.id}, 'extra')">?</button></div>`;
+                if(isManagementMode) actions = `<button style="background:#999; color:white;" onclick="deletePerson(${item.id})">מחק</button>`;
+                card.innerHTML = `<div style="font-size:1.05em;">${item.name}</div>${actions}`;
+                teamDiv.appendChild(card);
+            });
+            container.appendChild(teamDiv);
+        });
+        document.getElementById('p-count').innerText = pTotal;
+        document.getElementById('m-count').innerText = mTotal;
+        document.getElementById('e-count').innerText = eTotal;
+    }
+
+    function updateStatus(id, s) {
+        const person = data.find(x=>x.id===id);
+        person.status = (person.status === s) ? 'none' : s;
+        save();
+    }
+
+    function generateTeamReport(teamName) {
+        const members = data.filter(x => x.team === teamName);
+        const present = members.filter(x => x.status === 'present');
+        const missing = members.filter(x => x.status === 'missing');
+        const extra = members.filter(x => x.status === 'extra');
+        const none = members.filter(x => x.status === 'none');
+
+        let txt = `*דיווח צוות ${teamName}*\n`;
+        txt += `✅ נוכחים (${present.length}): ${present.length > 0 ? present.map(x => x.name).join(', ') : 'אין'}\n`;
+        txt += `❌ חסרים (${missing.length}): ${missing.length > 0 ? missing.map(x => x.name).join(', ') : '0'}\n`;
+        if (extra.length > 0) txt += `❓ לא ביחידה (${extra.length}): ${extra.map(x => x.name).join(', ')}\n`;
+        if (none.length > 0) txt += `⚠️ טרם דוווחו (${none.length}): ${none.map(x => x.name).join(', ')}\n`;
+        return txt;
+    }
+
+    function openSendQueue() {
+        const queueList = document.getElementById('queueList');
+        queueList.innerHTML = '';
+        if(!recipients.length) return alert("הגדר ר''צים בהגדרות קודם!");
+        recipients.forEach(r => {
+            const report = generateTeamReport(r.team);
+            const div = document.createElement('div');
+            div.className = 'queue-item';
+            div.innerHTML = `<div><b>${r.name}</b><br><small>צוות ${r.team}</small></div>
+                             <button class="v-btn" onclick="sendToWa('${r.phone}', '${encodeURIComponent(report)}', this)">שלח</button>`;
+            queueList.appendChild(div);
+        });
+        document.getElementById('sendModal').style.display = 'flex';
+    }
+
+    function exportToExcel() {
+        const statusMap = { 'present': 'נוכח', 'missing': 'חסר', 'extra': 'לא ביחידה', 'none': 'לא דווח' };
+        let csvContent = "\uFEFFשם,צוות,סטטוס\n"; 
+        data.forEach(item => {
+            csvContent += `${item.name},${item.team},${statusMap[item.status]}\n`;
+        });
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.setAttribute("download", `hazala_report_${new Date().toLocaleDateString()}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    function sendFullReport() {
+        let fullTxt = `*דוח מחלקתי ריכוזי - ${new Date().toLocaleDateString('he-IL')}*\n\n`;
+        const teams = [...new Set(data.map(item => item.team))].sort();
+        teams.forEach(t => { fullTxt += generateTeamReport(t) + `\n`; });
+        window.open(`https://wa.me/?text=${encodeURIComponent(fullTxt)}`, '_blank');
+    }
+
+    function sendToWa(phone, msg, btn) {
+        const finalPhone = phone.replace(/\D/g,'').replace(/^0/, '972');
+        window.open(`https://wa.me/${finalPhone}?text=${msg}`, '_blank');
+        if(btn) { btn.innerText = 'נשלח ✓'; btn.style.background = '#aaa'; }
+    }
+
+    function downloadReport() {
+        let fullTxt = `דוח מחלקה מלא - ${new Date().toLocaleString()}\n\n`;
+        const teams = [...new Set(data.map(item => item.team))].sort();
+        teams.forEach(t => { fullTxt += generateTeamReport(t) + `\n`; });
+        const blob = new Blob([fullTxt], { type: 'text/plain;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `report_${new Date().toLocaleDateString()}.txt`;
+        link.click();
+    }
+
+    function resetAll() { if(confirm("איפוס כל הדיווחים?")) { data.forEach(x=>x.status='none'); save(); } }
+    function toggleManagement() { isManagementMode = !isManagementMode; document.getElementById('management').style.display = isManagementMode ? 'block' : 'none'; render(); }
+    function addPerson() { 
+        const n = document.getElementById('newName'), t = document.getElementById('newTeam');
+        if(n.value && t.value) { data.push({id:Date.now(), name:n.value, team:t.value, status:'none'}); n.value=''; save(); }
+    }
+    function deletePerson(id) { data = data.filter(x=>x.id!==id); save(); }
+    function addRecipient() {
+        const n = document.getElementById('recipName'), p = document.getElementById('recipPhone'), t = document.getElementById('recipTeam');
+        if(n.value && p.value && t.value) { recipients.push({name:n.value, phone:p.value, team:t.value}); n.value=''; p.value=''; t.value=''; save(); }
+    }
+    function deleteRecipient(i) { recipients.splice(i,1); save(); }
+    function filter() {
+        const v = document.getElementById('search').value.toLowerCase();
+        document.querySelectorAll('.person-card').forEach(c => {
+            const isMatch = c.innerText.toLowerCase().includes(v);
+            c.parentElement.style.display = isMatch ? 'block' : 'none';
+        });
+    }
+    function closeModal() { document.getElementById('sendModal').style.display = 'none'; }
+    save();
+</script>
+</body>
+</html>

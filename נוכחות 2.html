@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ניהול נוכחות - מחלקה מעודכנת</title>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; background: #eef2f3; margin: 0; padding: 10px; color: #333; }
+        .header { background: #004a99; color: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; position: sticky; top: 0; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; text-align: center; margin-top: 10px; }
+        .stat-card { background: rgba(255,255,255,0.1); padding: 8px; border-radius: 8px; font-size: 0.85em; }
+        .stat-num { display: block; font-size: 1.4em; font-weight: bold; }
+        
+        .controls { display: flex; gap: 8px; margin-bottom: 10px; }
+        .search-box { flex-grow: 1; padding: 12px; border: 2px solid #004a99; border-radius: 8px; font-size: 1em; }
+        
+        .management-section { background: #fff; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px dashed #004a99; display: none; }
+        .add-input-group { display: flex; gap: 5px; }
+        .add-input { flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
+
+        .person-card { background: white; padding: 12px; border-radius: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: 0.2s; }
+        .name { font-weight: bold; font-size: 1.1em; }
+        
+        .btn-group { display: flex; gap: 5px; }
+        button { border: none; padding: 10px 14px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .v-btn { background: #28a745; color: white; }
+        .x-btn { background: #dc3545; color: white; }
+        .q-btn { background: #ffc107; color: black; }
+        
+        .status-present { border-right: 10px solid #28a745; background: #f0fff4; }
+        .status-missing { border-right: 10px solid #dc3545; background: #fff5f5; }
+        .status-extra { border-right: 10px solid #ffc107; background: #fffdf0; }
+
+        .footer-btns { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; padding-bottom: 40px; }
+        .export-btn { background: #17a2b8; color: white; padding: 15px; font-size: 1.1em; }
+        .secondary-btns { display: flex; gap: 8px; }
+        .reset-btn { background: #6c757d; color: white; flex: 1; }
+        .clear-btn { background: #333; color: white; flex: 1; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-weight:bold;">בדיקת שמות - מחלקה</span>
+        <button id="toggleEdit" onclick="toggleManagement()" style="background:#fff; color:#004a99; padding:5px 12px; border-radius:6px; font-size:0.9em;">ניהול שמות</button>
+    </div>
+    <div class="stats-grid">
+        <div class="stat-card">נוכחים<span id="p-count" class="stat-num">0</span></div>
+        <div class="stat-card">חסרים<span id="m-count" class="stat-num">0</span></div>
+        <div class="stat-card">זרים<span id="e-count" class="stat-num">0</span></div>
+    </div>
+</div>
+
+<div id="management" class="management-section">
+    <h4 style="margin-top:0;">הוספת אדם חדש</h4>
+    <div class="add-input-group">
+        <input type="text" id="newName" class="add-input" placeholder="שם מלא...">
+        <button style="background:#004a99; color:white;" onclick="addPerson()">הוסף</button>
+    </div>
+    <p style="font-size:0.8em; color:gray; margin-bottom:0;">* במצב ניהול ניתן לערוך או למחוק שמות קיימים.</p>
+</div>
+
+<div class="controls">
+    <input type="text" id="search" class="search-box" placeholder="חיפוש מהיר לפי שם..." onkeyup="filter()">
+</div>
+
+<div id="list"></div>
+
+<div class="footer-btns">
+    <button class="export-btn" onclick="exportData()">הפק דוח (העתקה + קובץ)</button>
+    <div class="secondary-btns">
+        <button class="reset-btn" onclick="resetStatuses()">איפוס נוכחות</button>
+        <button class="clear-btn" onclick="clearAllData()">מחיקת כל הרשימה</button>
+    </div>
+</div>
+
+<script>
+    // רשימת השמות המעודכנת שלך
+    const initialNames = [
+        "אביב", "אופיר", "אורי ביידר", "אורי כהן", "אורי מרציאנו", "אושר", 
+        "איליה", "איתי", "איתמר", "בן", "דביר", "דניאל", "הראל גאוטה", 
+        "ולדימיר", "חביב", "אן", "יגל אברהם", "יגל שושני", "יואב", "יואב", 
+        "לירון", "מאור שאבי", "מתן", "מתן", "נהוראי", "נווה", "ניב", 
+        "עמית", "עקיבא", "קובי", "רון", "שהם", "שיקו הדדי"
+    ];
+
+    // טעינה מהזיכרון של הטלפון או שימוש ברשימה הראשונית
+    let data = JSON.parse(localStorage.getItem('myDepartmentList')) || initialNames.sort().map((n, i) => ({ id: Date.now() + i, name: n, status: 'none' }));
+    
+    let isManagementMode = false;
+
+    function save() {
+        localStorage.setItem('myDepartmentList', JSON.stringify(data));
+        render();
+    }
+
+    function render() {
+        const container = document.getElementById('list');
+        container.innerHTML = '';
+        let p=0, m=0, e=0;
+
+        data.forEach(item => {
+            if(item.status==='present') p++;
+            if(item.status==='missing') m++;
+            if(item.status==='extra') e++;
+
+            const div = document.createElement('div');
+            div.className = `person-card status-${item.status}`;
+            
+            let actionButtons = `
+                <div class="btn-group">
+                    <button class="v-btn" onclick="updateStatus(${item.id}, 'present')">V</button>
+                    <button class="x-btn" onclick="updateStatus(${item.id}, 'missing')">X</button>
+                    <button class="q-btn" onclick="updateStatus(${item.id}, 'extra')">?</button>
+                </div>
+            `;
+
+            if(isManagementMode) {
+                actionButtons = `
+                    <div class="btn-group">
+                        <button style="background:#6c757d; color:white; font-size:0.8em;" onclick="editPerson(${item.id})">ערוך</button>
+                        <button style="background:#000; color:white; font-size:0.8em;" onclick="deletePerson(${item.id})">מחק</button>
+                    </div>
+                `;
+            }
+
+            div.innerHTML = `<div class="name">${item.name}</div>${actionButtons}`;
+            container.appendChild(div);
+        });
+
+        document.getElementById('p-count').innerText = p;
+        document.getElementById('m-count').innerText = m;
+        document.getElementById('e-count').innerText = e;
+    }
+
+    function updateStatus(id, status) {
+        data.find(x => x.id === id).status = status;
+        save();
+    }
+
+    function toggleManagement() {
+        isManagementMode = !isManagementMode;
+        document.getElementById('management').style.display = isManagementMode ? 'block' : 'none';
+        document.getElementById('toggleEdit').innerText = isManagementMode ? "חזור לבדיקה" : "ניהול שמות";
+        render();
+    }
+
+    function addPerson() {
+        const nameInput = document.getElementById('newName');
+        if(nameInput.value.trim() === "") return;
+        data.push({ id: Date.now(), name: nameInput.value.trim(), status: 'none' });
+        data.sort((a, b) => a.name.localeCompare(b.name));
+        nameInput.value = "";
+        save();
+    }
+
+    function deletePerson(id) {
+        if(confirm("למחוק את השם?")) {
+            data = data.filter(x => x.id !== id);
+            save();
+        }
+    }
+
+    function editPerson(id) {
+        const person = data.find(x => x.id === id);
+        const newName = prompt("ערוך שם:", person.name);
+        if(newName && newName.trim() !== "") {
+            person.name = newName.trim();
+            save();
+        }
+    }
+
+    function resetStatuses() {
+        if(confirm("לאפס את כל סימוני הנוכחות?")) {
+            data.forEach(x => x.status = 'none');
+            save();
+        }
+    }
+
+    function clearAllData() {
+        if(confirm("זהירות! זה ימחק את כל הרשימה. להמשיך?")) {
+            data = [];
+            save();
+        }
+    }
+
+    function filter() {
+        let val = document.getElementById('search').value.toLowerCase();
+        document.querySelectorAll('.person-card').forEach(card => {
+            let name = card.querySelector('.name').innerText.toLowerCase();
+            card.style.display = name.includes(val) ? 'flex' : 'none';
+        });
+    }
+
+    function exportData() {
+        let txt = `דוח נוכחות - ${new Date().toLocaleTimeString()}\n`;
+        txt += `====================\n`;
+        txt += `נוכחים: ${data.filter(x=>x.status==='present').length}\n`;
+        txt += `חסרים: ${data.filter(x=>x.status==='missing').length}\n`;
+        txt += `לא מהמחלקה (זרים): ${data.filter(x=>x.status==='extra').length}\n\n`;
+        
+        txt += "פירוט חסרים:\n";
+        const missing = data.filter(x=>x.status==='missing');
+        if(missing.length > 0) {
+            missing.forEach(x => txt += "- " + x.name + "\n");
+        } else {
+            txt += "אין חסרים.\n";
+        }
+
+        // העתקה אוטומטית ללוח
+        const el = document.createElement('textarea');
+        el.value = txt;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+
+        // ניסיון הורדה כקובץ
+        try {
+            const blob = new Blob(["\uFEFF" + txt], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "report.txt";
+            a.click();
+        } catch(e) {}
+
+        alert("הדוח הופק והועתק ללוח!\nעכשיו אפשר לעשות 'הדבק' בווטסאפ.\n\n" + txt);
+    }
+
+    render();
+</script>
+</body>
+</html>

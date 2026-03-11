@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ניהול נוכחות - סמסונג אופטימיזציה</title>
+    <style>
+        :root { --primary: #004a99; --success: #28a745; --danger: #dc3545; --warning: #ffc107; }
+        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f0f2f5; margin: 0; padding: 10px; color: #333; padding-bottom: 180px; }
+        
+        /* כותרת קבועה למעלה */
+        .header { background: var(--primary); color: white; padding: 15px; border-radius: 15px; margin-bottom: 15px; position: sticky; top: 5px; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center; margin-top: 12px; }
+        .stat-card { background: rgba(255,255,255,0.15); padding: 10px; border-radius: 10px; }
+        .stat-num { display: block; font-size: 1.5em; font-weight: bold; }
+
+        /* הגדרות וניהול */
+        .management-section { background: #fff; padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px dashed var(--primary); display: none; }
+        .item-row { display: flex; gap: 8px; margin-bottom: 10px; }
+        input { padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; width: 100%; box-sizing: border-box; }
+        
+        /* כרטיסי חייל */
+        .person-card { background: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-right: 8px solid #ccc; transition: 0.2s; }
+        .status-present { border-right-color: var(--success); background: #f0fff4; }
+        .status-missing { border-right-color: var(--danger); background: #fff5f5; }
+        .status-extra { border-right-color: var(--warning); background: #fffdf0; }
+        .name { font-weight: bold; font-size: 1.1em; max-width: 50%; }
+
+        /* כפתורים */
+        .btn-group { display: flex; gap: 8px; }
+        button { border: none; padding: 12px 16px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 14px; transition: active 0.1s; }
+        button:active { transform: scale(0.95); opacity: 0.8; }
+        .v-btn { background: var(--success); color: white; }
+        .x-btn { background: var(--danger); color: white; }
+        .q-btn { background: var(--warning); color: black; }
+        
+        /* תפריט תחתון קבוע */
+        .footer-controls { position: fixed; bottom: 0; left: 0; width: 100%; background: white; padding: 15px; box-shadow: 0 -4px 15px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 10px; border-radius: 20px 20px 0 0; }
+        .wa-btn { background: #25D366; color: white; width: 100%; font-size: 1.1em; padding: 15px; }
+        .dl-btn { background: #555; color: white; width: 100%; font-size: 1em; padding: 10px; }
+
+        /* Modal */
+        #sendModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; }
+        .modal-content { background: white; width: 90%; max-width: 400px; padding: 25px; border-radius: 20px; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size: 1.2em; font-weight: bold;">דיווח נוכחות מהיר</span>
+        <div>
+            <button onclick="resetAll()" style="background:rgba(255,255,255,0.2); color:white; padding:5px 10px;">איפוס</button>
+            <button id="toggleEdit" onclick="toggleManagement()" style="background:#fff; color:var(--primary); padding:5px 10px;">הגדרות</button>
+        </div>
+    </div>
+    <div class="stats-grid">
+        <div class="stat-card">נוכחים<span id="p-count" class="stat-num">0</span></div>
+        <div class="stat-card">חסרים<span id="m-count" class="stat-num">0</span></div>
+        <div class="stat-card">אחר<span id="e-count" class="stat-num">0</span></div>
+    </div>
+</div>
+
+<div id="management" class="management-section">
+    <h4>⚙️ ניהול נמענים (מפקדים)</h4>
+    <div class="item-row">
+        <input type="text" id="recipName" placeholder="שם המפקד">
+        <input type="tel" id="recipPhone" placeholder="טלפון">
+        <button class="v-btn" onclick="addRecipient()">+</button>
+    </div>
+    <div id="recipientsList" style="margin-bottom:15px;"></div>
+    <hr>
+    <h4>👤 הוספת חייל לסד"כ</h4>
+    <div class="item-row">
+        <input type="text" id="newName" placeholder="שם מלא">
+        <button class="v-btn" onclick="addPerson()">הוסף</button>
+    </div>
+</div>
+
+<input type="text" id="search" style="margin-bottom:15px;" placeholder="🔍 חיפוש חייל..." onkeyup="filter()">
+
+<div id="list"></div>
+
+<div id="sendCheckboxes" style="margin: 20px 0; padding: 10px; background: white; border-radius: 12px;"></div>
+
+<div class="footer-controls">
+    <button class="wa-btn" onclick="openSendQueue()">📱 שלח דיווח ב-WhatsApp</button>
+    <button class="dl-btn" onclick="downloadReport()">💾 הורד דוח כקובץ טקסט (.txt)</button>
+</div>
+
+<div id="sendModal">
+    <div class="modal-content">
+        <h3>תחנת שליחה</h3>
+        <p>לחץ על השם כדי לעבור לווטסאפ שלו:</p>
+        <div id="queueList"></div>
+        <button style="background:#eee; color:#333; width:100%; margin-top:15px; padding:12px;" onclick="closeModal()">סגור</button>
+    </div>
+</div>
+
+<script>
+    // שמות לדוגמה (יופיעו רק בהפעלה הראשונה)
+    const initialNames = ["אביב", "אופיר", "אורי ביידר", "אורי כהן", "אורי מרציאנו", "אושר", "איליה", "איתי", "איתמר", "בן", "דביר", "דניאל", "הראל גאוטה", "ולדימיר", "חביב", "אן", "יגל אברהם", "יגל שושני", "יואב", "לירון", "מאור שאבי", "מתן", "נהוראי", "נווה", "ניב", "עמית", "עקיבא", "קובי", "רון", "שהם", "שיקו"];
+
+    let data = JSON.parse(localStorage.getItem('myList')) || initialNames.sort().map((n, i) => ({ id: Date.now() + i, name: n, status: 'none' }));
+    let recipients = JSON.parse(localStorage.getItem('myRecips')) || [];
+    let isManagementMode = false;
+
+    function save() {
+        localStorage.setItem('myList', JSON.stringify(data));
+        localStorage.setItem('myRecips', JSON.stringify(recipients));
+        render();
+        renderRecipients();
+    }
+
+    function renderRecipients() {
+        const listDiv = document.getElementById('recipientsList');
+        const checkDiv = document.getElementById('sendCheckboxes');
+        listDiv.innerHTML = '';
+        checkDiv.innerHTML = recipients.length ? '<p style="margin-top:0;"><b>בחר נמענים לשליחה:</b></p>' : '<p style="color:red;">לא הוגדרו נמענים בהגדרות</p>';
+
+        recipients.forEach((r, i) => {
+            listDiv.innerHTML += `<div class="item-row" style="background:#f9f9f9; padding:8px; border-radius:8px; align-items:center;">
+                <span style="flex:1"><b>${r.name}</b> (${r.phone})</span>
+                <button style="background:#333; color:white; padding:5px 10px;" onclick="deleteRecipient(${i})">מחק</button>
+            </div>`;
+
+            checkDiv.innerHTML += `<label style="display:flex; align-items:center; gap:10px; margin-bottom:10px; font-size:1.1em;">
+                <input type="checkbox" class="target-checkbox" style="width:22px; height:22px;" data-name="${r.name}" value="${r.phone}"> ${r.name}
+            </label>`;
+        });
+    }
+
+    function render() {
+        const container = document.getElementById('list');
+        container.innerHTML = '';
+        let p=0, m=0, e=0;
+        
+        data.forEach(item => {
+            if(item.status==='present') p++;
+            if(item.status==='missing') m++;
+            if(item.status==='extra') e++;
+            
+            const div = document.createElement('div');
+            div.className = `person-card status-${item.status}`;
+            
+            let actions = `<div class="btn-group">
+                <button class="v-btn" onclick="updateStatus(${item.id}, 'present')">V</button>
+                <button class="x-btn" onclick="updateStatus(${item.id}, 'missing')">X</button>
+                <button class="q-btn" onclick="updateStatus(${item.id}, 'extra')">?</button>
+            </div>`;
+            
+            if(isManagementMode) actions = `<button style="background:#666; color:white;" onclick="deletePerson(${item.id})">מחק</button>`;
+            
+            div.innerHTML = `<div class="name">${item.name}</div>${actions}`;
+            container.appendChild(div);
+        });
+        
+        document.getElementById('p-count').innerText = p;
+        document.getElementById('m-count').innerText = m;
+        document.getElementById('e-count').innerText = e;
+    }
+
+    function updateStatus(id, s) { 
+        const person = data.find(x=>x.id===id);
+        person.status = (person.status === s) ? 'none' : s; 
+        save(); 
+    }
+
+    function resetAll() {
+        if(confirm("לאפס את כל הדיווחים?")) {
+            data.forEach(x => x.status = 'none');
+            save();
+        }
+    }
+
+    function generateReportText() {
+        const now = new Date();
+        const time = now.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'});
+        const date = now.toLocaleDateString('he-IL');
+        
+        let txt = `*דוח נוכחות - ${date} | ${time}*\n`;
+        txt += `------------------------\n`;
+        txt += `✅ נוכחים: ${data.filter(x=>x.status==='present').length}\n`;
+        txt += `❌ חסרים: ${data.filter(x=>x.status==='missing').length}\n`;
+        txt += `❓ לא ביחידה: ${data.filter(x=>x.status==='extra').length}\n\n`;
+        
+        const missing = data.filter(x=>x.status==='missing');
+        if(missing.length > 0) {
+            txt += `*פירוט חסרים:*\n`;
+            missing.forEach(x => txt += `- ${x.name}\n`);
+        }
+        
+        const extra = data.filter(x=>x.status==='extra');
+        if(extra.length > 0) {
+            txt += `\n*פירוט אחר (חופש/משימה):*\n`;
+            extra.forEach(x => txt += `- ${x.name}\n`);
+        }
+        return txt;
+    }
+
+    function downloadReport() {
+        const text = generateReportText();
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        const link = document.createElement('a');
+        const now = new Date();
+        link.href = URL.createObjectURL(blob);
+        link.download = `דוח_נוכחות_${now.toLocaleDateString().replace(/\//g,'-')}.txt`;
+        link.click();
+    }
+
+    function openSendQueue() {
+        const selected = Array.from(document.querySelectorAll('.target-checkbox:checked'));
+        if(!selected.length) return alert("בחר לפחות נמען אחד");
+
+        const report = generateReportText();
+        const queueList = document.getElementById('queueList');
+        queueList.innerHTML = '';
+
+        selected.forEach(cb => {
+            const div = document.createElement('div');
+            div.style = "display:flex; justify-content:space-between; align-items:center; background:#f0f0f0; padding:10px; margin-bottom:8px; border-radius:10px;";
+            div.innerHTML = `<span>${cb.getAttribute('data-name')}</span> 
+                             <button class="v-btn" onclick="sendIndividual('${cb.value}', '${encodeURIComponent(report)}', this)">שלח</button>`;
+            queueList.appendChild(div);
+        });
+        document.getElementById('sendModal').style.display = 'flex';
+    }
+
+    function sendIndividual(phone, msg, btn) {
+        const finalPhone = phone.replace(/\D/g,'').replace(/^0/, '972');
+        window.open(`https://wa.me/${finalPhone}?text=${msg}`, '_blank');
+        btn.innerText = 'נשלח';
+        btn.style.background = '#ccc';
+    }
+
+    function closeModal() { document.getElementById('sendModal').style.display = 'none'; }
+    function toggleManagement() { isManagementMode = !isManagementMode; document.getElementById('management').style.display = isManagementMode ? 'block' : 'none'; render(); }
+    function addPerson() { const n = document.getElementById('newName'); if(n.value) { data.push({id:Date.now(), name:n.value, status:'none'}); data.sort((a,b)=>a.name.localeCompare(b.name)); n.value=''; save(); } }
+    function deletePerson(id) { data = data.filter(x=>x.id!==id); save(); }
+    function addRecipient() { const n = document.getElementById('recipName'), p = document.getElementById('recipPhone'); if(n.value && p.value) { recipients.push({name:n.value, phone:p.value}); n.value=''; p.value=''; save(); } }
+    function deleteRecipient(i) { recipients.splice(i,1); save(); }
+    function filter() { const v = document.getElementById('search').value.toLowerCase(); document.querySelectorAll('.person-card').forEach(c => { c.style.display = c.querySelector('.name').innerText.toLowerCase().includes(v) ? 'flex' : 'none'; }); }
+
+    render();
+    renderRecipients();
+</script>
+</body>
+</html>

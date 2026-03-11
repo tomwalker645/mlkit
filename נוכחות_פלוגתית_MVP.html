@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>נוכחות פלוגתית - MVP</title>
+  <style>
+    :root {
+      --bg: #f3f7fb;
+      --card: #ffffff;
+      --primary: #0d4f8b;
+      --primary-2: #08385f;
+      --ok: #1d8f4f;
+      --bad: #c93a43;
+      --warn: #d2a206;
+      --text: #1f3245;
+      --muted: #6b7f93;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+      background: linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 14px;
+    }
+    .header {
+      background: linear-gradient(140deg, var(--primary), var(--primary-2));
+      color: #fff;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+    .title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .title-row h1 {
+      margin: 0;
+      font-size: 1.15rem;
+    }
+    .muted { color: var(--muted); font-size: 0.9rem; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 10px;
+    }
+    .card {
+      background: var(--card);
+      border-radius: 10px;
+      padding: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    }
+    .col-12 { grid-column: span 12; }
+    .col-8 { grid-column: span 8; }
+    .col-6 { grid-column: span 6; }
+    .col-4 { grid-column: span 4; }
+    input, select, button, textarea {
+      width: 100%;
+      border: 1px solid #c9d5e2;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 16px;
+      font-family: inherit;
+      background: #fff;
+    }
+    textarea { min-height: 90px; }
+    button {
+      cursor: pointer;
+      border: 0;
+      font-weight: 700;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-soft { background: #e8eef5; color: #2f465c; }
+    .btn-danger { background: var(--bad); color: #fff; }
+    .btn-ok { background: var(--ok); color: #fff; }
+    .btn-inline {
+      width: auto;
+      padding: 7px 10px;
+      font-size: 0.9rem;
+    }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .row > * { flex: 1; min-width: 160px; }
+    .hidden { display: none !important; }
+
+    .soldier-row {
+      border: 1px solid #dbe5ef;
+      border-radius: 8px;
+      padding: 8px;
+      margin-top: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .status-group {
+      display: flex;
+      gap: 4px;
+      width: auto;
+    }
+    .status-group button {
+      width: auto;
+      min-width: 42px;
+      padding: 8px 10px;
+    }
+    .status-present { border-right: 5px solid var(--ok); background: #eef9f2; }
+    .status-missing { border-right: 5px solid var(--bad); background: #fff2f3; }
+    .status-extra { border-right: 5px solid var(--warn); background: #fff8df; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: 0.92rem;
+    }
+    th, td {
+      border-bottom: 1px solid #e3eaf1;
+      padding: 8px;
+      text-align: right;
+      vertical-align: top;
+    }
+
+    .pill {
+      display: inline-block;
+      background: #e8eef7;
+      color: #2f4a66;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      margin-inline-start: 4px;
+    }
+
+    @media (max-width: 900px) {
+      .col-8, .col-6, .col-4 { grid-column: span 12; }
+      .title-row h1 { font-size: 1rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="title-row">
+        <h1>מערכת נוכחות פלוגתית - MVP ענן</h1>
+        <div id="userTop" class="muted">טוען...</div>
+      </div>
+    </div>
+
+    <div id="appError" class="card col-12 hidden" style="border:1px solid #f0b3b7; color:#7c1d24;"></div>
+
+        <div id="authCard" class="card">
+      <h3 id="authTitle" style="margin-top:0;">כניסה / הרשמה</h3>
+
+      <div class="row">
+        <button class="btn-primary" id="showLoginBtn">מסך כניסה</button>
+        <button class="btn-soft" id="showRegisterBtn">מסך הרשמה</button>
+      </div>
+
+      <div id="loginView" style="margin-top:10px;">
+        <div class="row">
+          <input id="loginEmail" type="email" placeholder="אימייל" />
+          <input id="loginPassword" type="password" placeholder="סיסמה" />
+        </div>
+        <div class="row">
+          <input id="loginCompanyCode" type="text" placeholder="קוד פלוגה" />
+        </div>
+        <div class="row">
+          <button class="btn-primary" id="loginBtn" onclick="window.__loginFallback && window.__loginFallback()">כניסה</button>
+        </div>
+        <div id="forgotPasswordWrap" class="hidden" style="margin-top:8px;">
+          <button class="btn-soft btn-inline" id="forgotPasswordBtn" type="button" style="width:auto; padding:6px 10px;">שכחתי סיסמה</button>
+        </div>
+      </div>
+
+      <div id="resetRequestView" class="hidden" style="margin-top:10px;">
+        <div class="muted" style="margin-bottom:8px;">להחלפת סיסמה, שלח/י קישור איפוס למייל שלך.</div>
+        <div class="row">
+          <input id="resetEmail" type="email" placeholder="אימייל לאיפוס" />
+        </div>
+        <div class="row">
+          <button class="btn-soft btn-inline" id="sendResetLinkBtn" type="button" style="width:auto; padding:6px 10px;">שליחת קישור איפוס</button>
+          <button class="btn-soft btn-inline" id="backToLoginBtn" type="button" style="width:auto; padding:6px 10px;">חזרה לכניסה</button>
+        </div>
+      </div>
+
+      <div id="resetCompleteView" class="hidden" style="margin-top:10px;">
+        <div class="muted" style="margin-bottom:8px;">איפוס עבור: <span id="resetAccountEmail">-</span></div>
+        <div class="row">
+          <input id="newPassword" type="password" placeholder="סיסמה חדשה" />
+          <input id="confirmNewPassword" type="password" placeholder="אימות סיסמה חדשה" />
+        </div>
+        <div class="row">
+          <button class="btn-primary btn-inline" id="applyNewPasswordBtn" type="button" style="width:auto; padding:6px 10px;">שמירת סיסמה חדשה</button>
+          <button class="btn-soft btn-inline" id="backToLoginFromCompleteBtn" type="button" style="width:auto; padding:6px 10px;">חזרה לכניסה</button>
+        </div>
+      </div>
+
+      <div id="registerView" class="hidden" style="margin-top:10px;">
+        <div class="row">
+          <input id="regEmail" type="email" placeholder="אימייל" />
+          <input id="regPassword" type="password" placeholder="סיסמה" />
+        </div>
+        <div class="row">
+          <input id="regFullName" type="text" placeholder="שם מלא" />
+          <select id="regRoleSelect">
+            <option value="platoon_commander">מפקדת מחלקה</option>
+            <option value="class_commander">מפקדת כיתה</option>
+            <option value="soldier_reporter">חייל/ת מדווח/ת</option>
+            <option value="company_commander">מפקדת פלוגה</option>
+            <option value="observer">צופה מורשה</option>
+          </select>
+        </div>
+        <div class="row">
+          <input id="regCompanyCode" type="text" placeholder="קוד פלוגה (למשל: ploga-a)" />
+          <input id="regAccessCode" type="text" placeholder="קוד גישה פלוגתי מהמ&quot;פ" />
+        </div>
+        <div class="row">
+          <input id="regPhone" type="text" placeholder="טלפון לוואטסאפ (אופציונלי)" />
+        </div>
+        <div class="row hidden" id="companyNameRow">
+          <input id="regCompanyName" type="text" placeholder="שם פלוגה (נדרש רק למפקדת פלוגה ראשונה)" />
+        </div>
+        <div class="row hidden" id="platoonNameRow">
+          <input id="regPlatoonName" type="text" placeholder="שם מחלקה (נדרש למפקדת מחלקה)" />
+        </div>
+        <div class="row">
+          <button class="btn-soft" id="registerBtn">הרשמה ראשונית</button>
+        </div>
+        <div class="muted">בהרשמה ראשונה למפקדת פלוגה: אם קוד הפלוגה לא קיים, הוא ייווצר.</div>
+      </div>
+    </div>
+
+    <div id="appMain" class="hidden">
+      <div class="grid">
+        <div class="card col-12">
+          <div class="title-row">
+            <div>
+              <strong id="welcome"></strong>
+              <span id="rolePill" class="pill"></span>
+              <span id="companyPill" class="pill"></span>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <button class="btn-soft btn-inline" id="goMainBtn" type="button">דף דיווח</button>
+              <button class="btn-soft btn-inline" id="goSettingsBtn" type="button">הגדרות</button>
+              <button class="btn-soft btn-inline hidden" id="toggleMmReportBtn" type="button">הפעל דיווח עצמי למ"מ</button>
+              <button class="btn-danger btn-inline" id="logoutBtn">התנתקות</button>
+            </div>
+          </div>
+        </div>
+
+
+
+        <div id="myUserCard" class="card col-12 hidden">
+          <h3 style="margin-top:0;">המשתמש שלי</h3>
+          <div class="row">
+            <div><strong>שם מלא:</strong> <span id="meName">-</span></div>
+            <div><strong>תפקיד:</strong> <span id="meRole">-</span></div>
+            <div><strong>שם משתמש (אימייל):</strong> <span id="meEmail">-</span></div>
+            <div><strong>פלוגה:</strong> <span id="meCompany">-</span></div>
+          </div>
+          <div class="muted" style="margin-top:6px;">סיסמה קיימת לא ניתנת להצגה מתוך Firebase. אפשר לבצע החלפת סיסמה דרך מנגנון איפוס סיסמה.</div>
+        </div>
+
+        <div id="commanderUsersCard" class="card col-12 hidden">
+          <h3 style="margin-top:0;">משתמשי הפלוגה (למ"פ)</h3>
+          <table id="usersDirectoryTable">
+            <thead>
+              <tr>
+                <th>שם</th>
+                <th>תפקיד</th>
+                <th>שם משתמש (אימייל)</th>
+                <th>מחלקה</th>
+                <th>סיסמה</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div id="companyDashboardCard" class="card col-12 hidden">
+          <div class="title-row">
+            <h3 style="margin:0;">דשבורד מפקדת פלוגה</h3>
+            <button class="btn-soft btn-inline" id="toggleCommanderReportBtn">הפעל דיווח עצמי למ"פ</button>
+          </div>
+          <div class="row" style="margin-top:10px;">
+            <div class="card" style="padding:10px;">
+              <div class="muted">סך דוחות פלוגה</div>
+              <div id="kpiTotalReports" style="font-size:1.2rem; font-weight:700;">0</div>
+            </div>
+            <div class="card" style="padding:10px;">
+              <div class="muted">מחלקות פעילות</div>
+              <div id="kpiPlatoons" style="font-size:1.2rem; font-weight:700;">0</div>
+            </div>
+            <div class="card" style="padding:10px;">
+              <div class="muted">דיווחים ב-24 שעות</div>
+              <div id="kpiLast24h" style="font-size:1.2rem; font-weight:700;">0</div>
+            </div>
+          </div>
+          <div class="row" style="margin-top:10px;">
+            <input id="companyAccessCodeInput" type="text" placeholder="קוד גישה פלוגתי חדש/מעודכן" />
+            <button class="btn-soft btn-inline" id="saveCompanyAccessCodeBtn" type="button" style="width:auto; padding:8px 12px;">שמור קוד גישה</button>
+          </div>
+          <div class="muted">רק מי שיודע את הקוד הזה יכול להירשם לפלוגה.</div>
+        </div>
+
+        <div id="manageDataCard" class="card col-4 hidden">
+          <h3 style="margin-top:0;">ניהול מבנה</h3>
+          <div class="row" id="platoonManageRow">
+            <input id="newPlatoonName" placeholder="שם מחלקה" />
+            <button class="btn-primary" id="addPlatoonBtn">הוספת מחלקה (רק חריגים)</button>
+          </div>
+          <div class="row">
+            <select id="teamPlatoonSelect"></select>
+            <input id="newTeamName" placeholder="שם צוות" />
+            <button class="btn-primary" id="addTeamBtn">הוספת צוות</button>
+          </div>
+          <div class="row">
+            <select id="soldierPlatoonSelect"></select>
+            <select id="soldierTeamSelect"></select>
+            <input id="newSoldierName" placeholder="שם חייל/ת" />
+            <button class="btn-primary" id="addSoldierBtn">הוספת חייל/ת</button>
+          </div>
+        </div>
+
+        <div id="reportCard" class="card col-8 hidden">
+          <h3 style="margin-top:0;">דיווח נוכחות מחלקתי</h3>
+          <div class="row">
+            <select id="reportPlatoonSelect"></select>
+            <select id="reportTeamSelect">
+              <option value="all">כל הצוותים</option>
+            </select>
+            <input id="reportNote" placeholder="הערה לדוח (אופציונלי)" />
+          </div>
+          <div id="soldiersForReport"></div>
+          <div class="row hidden" id="reportRecipientsWrap">
+            <div id="reportRecipients" class="card" style="padding:8px; width:100%;"></div>
+          </div>
+          <div class="row">
+            <button class="btn-ok" id="saveReportBtn">שמור דוח</button>
+            <button class="btn-soft btn-inline" id="sendWhatsAppBtn" type="button" style="width:auto; padding:8px 12px;">שלח בוואטסאפ לנמענים</button>
+          </div>
+        </div>
+
+        <div id="permissionsCard" class="card col-4 hidden">
+          <h3 style="margin-top:0;">הרשאות צפייה פלוגתית</h3>
+          <div class="muted">מפקדת פלוגה יכולה לתת/לבטל הרשאת צפייה לכל הפלוגה.</div>
+          <table id="permissionsTable">
+            <thead>
+              <tr>
+                <th>שם</th>
+                <th>תפקיד</th>
+                <th>צפייה כללית</th>
+                <th>פעולה</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div id="reportsCard" class="card col-8">
+          <h3 style="margin-top:0;">כל דוחות הנוכחות</h3>
+          <div class="row">
+            <select id="filterPlatoon">
+              <option value="all">כל המחלקות</option>
+            </select>
+            <input id="filterDate" type="date" />
+            <button class="btn-soft" id="refreshReportsBtn">רענון</button>
+          </div>
+          <table id="reportsTable">
+            <thead>
+              <tr>
+                <th>תאריך</th>
+                <th>מחלקה</th>
+                <th>מדווח/ת</th>
+                <th>סיכום</th>
+                <th>פירוט</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, deleteUser, sendPasswordResetEmail, verifyPasswordResetCode, confirmPasswordReset } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
+    import {
+      getFirestore,
+      doc,
+      setDoc,
+      getDoc,
+      updateDoc,
+      deleteDoc,
+      collection,
+      addDoc,
+      getDocs,
+      query,
+      where,
+      serverTimestamp,
+      limit
+    } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyALwGmwIZ8dSFOUqM0KPAewjhZJANT95bc",
+      authDomain: "attendance-ploga.firebaseapp.com",
+      projectId: "attendance-ploga",
+      storageBucket: "attendance-ploga.firebasestorage.app",
+      messagingSenderId: "325174605988",
+      appId: "1:325174605988:web:c76cbffe635d56e447ce31"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+
+    const state = {
+      user: null,
+      profile: null,
+      platoons: [],
+      teams: [],
+      soldiers: [],
+      reports: [],
+      users: [],
+      commanderReportEnabled: false,
+      reportDraft: {},
+      authBusy: false,
+      bootDone: false,
+      appPage: 'main',
+      lastReportText: '',
+      lastReportPhones: [],
+      mmReportEnabled: false
+    };
+
+    const el = (id) => document.getElementById(id);
+    let resetActionCode = ''; 
+
+    function showError(msg) {
+      const box = el('appError');
+      box.classList.remove('hidden');
+      box.textContent = msg;
+    }
+
+    function clearError() {
+      el('appError').classList.add('hidden');
+      el('appError').textContent = '';
+    }
+
+    function roleLabel(role) {
+      if (role === 'company_commander') return 'מפקדת פלוגה';
+      if (role === 'platoon_commander') return 'מפקדת מחלקה';
+      if (role === 'class_commander') return 'מפקדת כיתה';
+      if (role === 'soldier_reporter') return 'חייל/ת מדווח/ת';
+      return 'צופה מורשה';
+    }
+
+    function isCompanyViewer() {
+      if (!state.profile) return false;
+      return state.profile.role === 'company_commander' || state.profile.canViewAll === true;
+    }
+
+        function friendlyAuthError(err) {
+      const code = err?.code || '';
+      const map = {
+        'auth/invalid-credential': 'אימייל או סיסמה שגויים.',
+        'auth/wrong-password': 'הסיסמה שגויה.',
+        'auth/user-not-found': 'לא נמצא משתמש עם האימייל הזה.',
+        'auth/invalid-email': 'כתובת האימייל לא תקינה.',
+        'auth/too-many-requests': 'יותר מדי ניסיונות. נסה שוב בעוד כמה דקות.',
+        'auth/network-request-failed': 'בעיית רשת. בדוק חיבור אינטרנט ונסה שוב.',
+        'auth/invalid-action-code': 'קישור איפוס לא תקין.',
+        'auth/expired-action-code': 'תוקף קישור האיפוס פג. בקש/י קישור חדש.',
+        'auth/weak-password': 'הסיסמה חלשה מדי. נדרשים לפחות 6 תווים.',
+        'auth/operation-not-allowed': 'שיטת התחברות אימייל/סיסמה לא פעילה בפרויקט Firebase.'
+      };
+      return map[code] || 'שגיאת התחברות. בדוק אימייל/סיסמה ונסה שוב.';
+    }
+
+    function shouldShowForgotPassword(err) {
+      const code = err?.code || '';
+      return code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found';
+    }
+
+    function toggleForgotPassword(show) {
+      const wrap = el('forgotPasswordWrap');
+      if (!wrap) return;
+      wrap.classList.toggle('hidden', !show);
+    }
+    async function register() {
+      clearError();
+      const email = el('regEmail').value.trim();
+      const password = el('regPassword').value.trim();
+      const fullName = el('regFullName').value.trim();
+      const role = el('regRoleSelect').value;
+      const companyCode = el('regCompanyCode').value.trim().toLowerCase();
+      const accessCode = el('regAccessCode').value.trim();
+      const phone = el('regPhone').value.trim();
+      const companyName = el('regCompanyName').value.trim();
+      const platoonName = el('regPlatoonName').value.trim();
+      const isPlatoonScopedRole = role === 'platoon_commander' || role === 'class_commander' || role === 'soldier_reporter';
+
+      if (!email || !password || !fullName || !companyCode || !accessCode) {
+        showError('יש למלא אימייל, סיסמה, שם מלא, קוד פלוגה וקוד גישה פלוגתי.');
+        return;
+      }
+
+      if (role === 'company_commander' && !companyName) {
+        showError('בהרשמת מפקדת פלוגה, יש להזין גם שם פלוגה.');
+        return;
+      }
+
+      if (isPlatoonScopedRole && !platoonName) {
+        showError('לתפקיד זה יש להזין שם מחלקה.');
+        return;
+      }
+
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      const uid = cred.user.uid;
+
+      await setDoc(doc(db, 'users', uid), {
+        uid,
+        fullName,
+        email,
+        role,
+        phone,
+        companyCode,
+        platoonId: null,
+        canViewAll: role === 'company_commander',
+        createdAt: serverTimestamp()
+      });
+
+      const companyRef = doc(db, 'companies', companyCode);
+      const companySnap = await getDoc(companyRef);
+
+      if (!companySnap.exists()) {
+        if (role !== 'company_commander') {
+          await deleteDoc(doc(db, 'users', uid));
+          await deleteUser(cred.user);
+          showError('קוד הפלוגה לא קיים. קודם מ"פ חייבת ליצור פלוגה.');
+          return;
+        }
+
+        await setDoc(companyRef, {
+          code: companyCode,
+          name: companyName,
+          accessCode,
+          createdAt: serverTimestamp(),
+          createdBy: uid
+        });
+      } else {
+        const companyData = companySnap.data() || {};
+        if (!companyData.accessCode || companyData.accessCode !== accessCode) {
+          await deleteDoc(doc(db, 'users', uid));
+          await deleteUser(cred.user);
+          showError('קוד הגישה הפלוגתי שגוי. פנה/י למ"פ לקבלת קוד נכון.');
+          return;
+        }
+
+        if (role === 'company_commander') {
+          const ownerUid = companyData.createdBy;
+          if (ownerUid && ownerUid !== uid) {
+            await deleteDoc(doc(db, 'users', uid));
+            await deleteUser(cred.user);
+            showError('בפלוגה זו כבר קיימת מ"פ אחת.');
+            return;
+          }
+        }
+      }
+
+      if (role === 'platoon_commander') {
+        let platoonId = null;
+        const existingQ = query(
+          collection(db, 'platoons'),
+          where('companyCode', '==', companyCode),
+          where('name', '==', platoonName)
+        );
+        const existingSnap = await getDocs(existingQ);
+
+        if (!existingSnap.empty) {
+          const existing = existingSnap.docs[0];
+          const existingData = existing.data();
+          if (existingData.commanderUid && existingData.commanderUid !== uid) {
+            await deleteDoc(doc(db, 'users', uid));
+            await deleteUser(cred.user);
+            showError('המחלקה כבר משויכת למשתמש אחר.');
+            return;
+          }
+          platoonId = existing.id;
+          await updateDoc(doc(db, 'platoons', platoonId), { commanderUid: uid });
+        } else {
+          const platoonRef = await addDoc(collection(db, 'platoons'), {
+            companyCode,
+            name: platoonName,
+            commanderUid: uid,
+            createdAt: serverTimestamp()
+          });
+          platoonId = platoonRef.id;
+        }
+
+        await updateDoc(doc(db, 'users', uid), { platoonId });
+      } else if (isPlatoonScopedRole) {
+        const platoonQ = query(
+          collection(db, 'platoons'),
+          where('companyCode', '==', companyCode),
+          where('name', '==', platoonName)
+        );
+        const platoonSnap = await getDocs(platoonQ);
+        if (platoonSnap.empty) {
+          await deleteDoc(doc(db, 'users', uid));
+          await deleteUser(cred.user);
+          showError('המחלקה לא קיימת. יש להירשם למחלקה קיימת.');
+          return;
+        }
+        const platoonId = platoonSnap.docs[0].id;
+        await updateDoc(doc(db, 'users', uid), { platoonId });
+      }
+    }
+
+    async function login() {
+      const email = el('loginEmail').value.trim();
+      const password = el('loginPassword').value.trim();
+      const companyCodeInput = el('loginCompanyCode').value.trim().toLowerCase();
+      toggleForgotPassword(false);
+      if (!email || !password || !companyCodeInput) {
+        showError('יש להזין אימייל, סיסמה וקוד פלוגה.');
+        return;
+      }
+
+      state.authBusy = true;
+      el('userTop').textContent = 'מתחבר...';
+      showError('מתחבר...');
+
+      try {
+        const cred = await signInWithEmailAndPassword(auth, email, password);
+        const profile = await loadProfile(cred.user.uid);
+        const userCompanyCode = (profile?.companyCode || '').toLowerCase();
+
+        if (!userCompanyCode || userCompanyCode !== companyCodeInput) {
+          await signOut(auth);
+          throw new Error('קוד הפלוגה שהוזן לא תואם למשתמש זה.');
+        }
+
+        localStorage.setItem('attendanceCompanyCode', companyCodeInput);
+        await bootLoggedIn(cred.user);
+        clearError();
+        toggleForgotPassword(false);
+      } catch (e) {
+        showError(e?.code ? friendlyAuthError(e) : (e?.message || 'שגיאת התחברות'));
+        toggleForgotPassword(shouldShowForgotPassword(e));
+        throw e;
+      } finally {
+        state.authBusy = false;
+      }
+    }
+
+    async function resetPassword(emailFromInput) {
+      const email = (emailFromInput || '').trim() || el('loginEmail').value.trim();
+      if (!email) {
+        showError('כדי לאפס סיסמה יש להזין אימייל קודם.');
+        return;
+      }
+      try {
+        await sendPasswordResetEmail(auth, email);
+        showError('אם האימייל קיים במערכת, קישור איפוס נשלח. בדוק/י גם ספאם וקידומי מכירות.');
+      } catch (e) {
+        showError(friendlyAuthError(e));
+      }
+    }
+
+    async function applyNewPasswordFromCode() {
+      const newPassword = el('newPassword').value.trim();
+      const confirmPassword = el('confirmNewPassword').value.trim();
+
+      if (!resetActionCode) {
+        showError('קישור איפוס לא נמצא. בקש/י קישור חדש.');
+        switchAuthMode('reset-request');
+        return;
+      }
+      if (newPassword.length < 6) {
+        showError('הסיסמה חייבת להכיל לפחות 6 תווים.');
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        showError('אימות הסיסמה אינו תואם.');
+        return;
+      }
+
+      try {
+        await confirmPasswordReset(auth, resetActionCode, newPassword);
+        clearError();
+        showError('הסיסמה הוחלפה בהצלחה. ניתן להתחבר עם הסיסמה החדשה.');
+        resetActionCode = '';
+        if (window.history && window.history.replaceState) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+        switchAuthMode('login');
+      } catch (e) {
+        showError(friendlyAuthError(e));
+      }
+    }
+
+    async function prepareResetFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const mode = params.get('mode');
+      const code = params.get('oobCode');
+      if (mode !== 'resetPassword' || !code) return;
+
+      try {
+        const email = await verifyPasswordResetCode(auth, code);
+        resetActionCode = code;
+        el('resetAccountEmail').textContent = email;
+        switchAuthMode('reset-complete');
+      } catch (e) {
+        showError(friendlyAuthError(e));
+        switchAuthMode('reset-request');
+      }
+    }
+    async function loadProfile(uid) {
+      // בהרשמה חדשה onAuthStateChanged עלול לרוץ לפני שמסמך users נכתב.
+      for (let i = 0; i < 12; i++) {
+        const snap = await getDoc(doc(db, 'users', uid));
+        if (snap.exists()) {
+          state.profile = snap.data();
+          return state.profile;
+        }
+        await new Promise((r) => setTimeout(r, 350));
+      }
+      throw new Error('לא נמצא פרופיל משתמש ב-DB.');
+    }
+
+    async function loadCoreData() {
+      const companyCode = state.profile.companyCode;
+
+      const platoonsQ = query(collection(db, 'platoons'), where('companyCode', '==', companyCode));
+      const platoonsSnap = await getDocs(platoonsQ);
+      state.platoons = platoonsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+      const teamsQ = query(collection(db, 'teams'), where('companyCode', '==', companyCode));
+      const teamsSnap = await getDocs(teamsQ);
+      state.teams = teamsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+      const soldiersQ = query(collection(db, 'soldiers'), where('companyCode', '==', companyCode), where('active', '==', true));
+      const soldiersSnap = await getDocs(soldiersQ);
+      state.soldiers = soldiersSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+      // טוענים משתמשים לכל התפקידים לצורך בחירת נמענים לדיווח.
+      const usersQ = query(collection(db, 'users'), where('companyCode', '==', companyCode));
+      const usersSnap = await getDocs(usersQ);
+      state.users = usersSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+      let reportsQ;
+      if (isCompanyViewer()) {
+        reportsQ = query(collection(db, 'reports'), where('companyCode', '==', companyCode), limit(200));
+      } else {
+        reportsQ = query(
+          collection(db, 'reports'),
+          where('platoonId', '==', state.profile.platoonId),
+          limit(200)
+        );
+      }
+      const reportsSnap = await getDocs(reportsQ);
+      state.reports = reportsSnap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => {
+          const aMs = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
+          const bMs = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+          return bMs - aMs;
+        });
+    }
+
+    function fillSelect(selectId, items, labelKey = 'name', includeAll = false) {
+      const sel = el(selectId);
+      sel.innerHTML = includeAll ? '<option value="all">כל המחלקות</option>' : '';
+      items.forEach((item) => {
+        const op = document.createElement('option');
+        op.value = item.id;
+        op.textContent = item[labelKey] || item.id;
+        sel.appendChild(op);
+      });
+    }
+
+    function getAllowedPlatoonsForUser() {
+      if (isCompanyViewer()) return state.platoons;
+      return state.platoons.filter((p) => p.id === state.profile.platoonId);
+    }
+
+                function renderScaffold() {
+      const p = state.profile;
+      el('authCard').classList.add('hidden');
+      el('appMain').classList.remove('hidden');
+      el('welcome').textContent = `שלום ${p.fullName}`;
+      el('rolePill').textContent = roleLabel(p.role);
+      el('companyPill').textContent = `פלוגה: ${p.companyCode}`;
+      el('userTop').textContent = `${p.fullName} | ${roleLabel(p.role)}`;
+
+      const canManageCompany = p.role === 'company_commander';
+      const canManageOwnPlatoon = false;
+      const canReport = (p.role === 'platoon_commander' && state.mmReportEnabled) || p.role === 'class_commander' || p.role === 'soldier_reporter' || (p.role === 'company_commander' && state.commanderReportEnabled);
+      const inSettings = state.appPage === 'settings';
+
+      el('goMainBtn').className = inSettings ? 'btn-soft btn-inline' : 'btn-primary btn-inline';
+      el('goSettingsBtn').className = inSettings ? 'btn-primary btn-inline' : 'btn-soft btn-inline';
+      const showMmToggle = p.role === 'platoon_commander';
+      el('toggleMmReportBtn').classList.toggle('hidden', !showMmToggle || inSettings);
+      if (showMmToggle) {
+        el('toggleMmReportBtn').textContent = state.mmReportEnabled ? 'כבה דיווח עצמי לממ' : 'הפעל דיווח עצמי לממ';
+      }
+
+      el('myUserCard').classList.toggle('hidden', !inSettings);
+      el('commanderUsersCard').classList.toggle('hidden', !(canManageCompany && inSettings));
+      el('manageDataCard').classList.toggle('hidden', !(canManageCompany && inSettings));
+      el('permissionsCard').classList.toggle('hidden', !(canManageCompany && inSettings));
+      el('companyDashboardCard').classList.toggle('hidden', !(canManageCompany && inSettings));
+
+      el('reportCard').classList.toggle('hidden', !canReport || inSettings);
+      const canSeeReportsList = p.role !== 'soldier_reporter';
+      const canSendToRecipients = p.role === 'class_commander' || p.role === 'soldier_reporter';
+      el('reportsCard').classList.toggle('hidden', inSettings || !canSeeReportsList);
+      el('reportRecipientsWrap').classList.toggle('hidden', !canSendToRecipients || inSettings || !canReport);
+      el('sendWhatsAppBtn').classList.toggle('hidden', !canSendToRecipients || inSettings || !canReport);
+
+      const platoonRow = el('platoonManageRow');
+      if (platoonRow) platoonRow.classList.toggle('hidden', !canManageCompany);
+    }
+
+    function setAppPage(page) {
+      state.appPage = page === 'settings' ? 'settings' : 'main';
+      renderScaffold();
+    }
+
+    function platoonNameById(id) {
+      const p = state.platoons.find((x) => x.id === id);
+      return p ? p.name : 'לא ידוע';
+    }
+
+            function renderAllSelects() {
+      const allowedPlatoons = getAllowedPlatoonsForUser();
+
+      fillSelect('reportPlatoonSelect', allowedPlatoons);
+      fillSelect('filterPlatoon', state.platoons, 'name', true);
+
+      // מ"מ תראה רק את המחלקה שלה, מ"פ תראה הכל.
+      fillSelect('teamPlatoonSelect', allowedPlatoons);
+      fillSelect('soldierPlatoonSelect', allowedPlatoons);
+
+      const initialPlatoon = allowedPlatoons[0]?.id || '';
+      el('reportPlatoonSelect').value = initialPlatoon;
+      el('teamPlatoonSelect').value = initialPlatoon;
+      el('soldierPlatoonSelect').value = initialPlatoon;
+      refreshTeamSelects();
+      renderRecipientsSelector();
+    }
+
+    function refreshTeamSelects() {
+      const reportPlatoonId = el('reportPlatoonSelect').value;
+      const soldierPlatoonId = el('soldierPlatoonSelect').value;
+      const teamPlatoonId = el('teamPlatoonSelect').value;
+
+      const reportTeams = state.teams.filter((t) => t.platoonId === reportPlatoonId);
+      const soldierTeams = state.teams.filter((t) => t.platoonId === soldierPlatoonId);
+
+      const reportTeamSel = el('reportTeamSelect');
+      reportTeamSel.innerHTML = '<option value="all">כל הצוותים</option>';
+      reportTeams.forEach((t) => {
+        const op = document.createElement('option');
+        op.value = t.id;
+        op.textContent = t.name;
+        reportTeamSel.appendChild(op);
+      });
+
+      fillSelect('soldierTeamSelect', soldierTeams);
+
+      const manageTeamSelect = el('teamPlatoonSelect');
+      const currentTeamPlatoon = teamPlatoonId || reportPlatoonId || state.platoons[0]?.id;
+      manageTeamSelect.value = currentTeamPlatoon || '';
+
+      renderSoldiersForReport();
+    }
+
+    function renderMyUserCard() {
+      if (!state.profile) return;
+      el('meName').innerText = state.profile.fullName || '-';
+      el('meRole').innerText = roleLabel(state.profile.role);
+      el('meEmail').innerText = state.profile.email || '-';
+      el('meCompany').innerText = state.profile.companyCode || '-';
+    }
+
+    function renderUsersDirectory() {
+      if (state.profile?.role !== 'company_commander') return;
+      const tbody = el('usersDirectoryTable').querySelector('tbody');
+      tbody.innerHTML = '';
+
+      state.users
+        .slice()
+        .sort((a, b) => (a.fullName || '').localeCompare(b.fullName || '', 'he'))
+        .forEach((u) => {
+          const platoonName = u.platoonId ? (state.platoons.find((p) => p.id === u.platoonId)?.name || '-') : '-';
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${u.fullName || '-'}</td>
+            <td>${roleLabel(u.role)}</td>
+            <td>${u.email || '-'}</td>
+            <td>${platoonName}</td>
+            <td>לא נגיש (מוצפן ב-Firebase)</td>
+          `;
+          tbody.appendChild(tr);
+        });
+    }
+    function renderCompanyDashboard() {
+      if (state.profile?.role !== 'company_commander') return;
+
+      const totalReports = state.reports.length;
+      const platoonsCount = new Set(state.reports.map(r => r.platoonId).filter(Boolean)).size;
+      const nowMs = Date.now();
+      const last24 = state.reports.filter((r) => {
+        const ms = r.createdAt?.toDate ? r.createdAt.toDate().getTime() : 0;
+        return ms > 0 && (nowMs - ms) <= 24 * 60 * 60 * 1000;
+      }).length;
+
+      el('kpiTotalReports').innerText = totalReports;
+      el('kpiPlatoons').innerText = platoonsCount;
+      el('kpiLast24h').innerText = last24;
+      el('toggleCommanderReportBtn').innerText = state.commanderReportEnabled
+        ? 'כבה דיווח עצמי למ"פ'
+        : 'הפעל דיווח עצמי למ"פ';
+    }
+    function renderPermissions() {
+      if (state.profile.role !== 'company_commander') return;
+      const tbody = el('permissionsTable').querySelector('tbody');
+      tbody.innerHTML = '';
+      state.users.forEach((u) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${u.fullName}</td>
+          <td>${roleLabel(u.role)}</td>
+          <td>${u.canViewAll ? 'כן' : 'לא'}</td>
+          <td>
+            <button class="btn-soft btn-inline" data-uid="${u.uid}" data-view="${u.canViewAll ? '0' : '1'}">
+              ${u.canViewAll ? 'בטל' : 'אפשר'}
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      tbody.querySelectorAll('button[data-uid]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const uid = btn.dataset.uid;
+          const view = btn.dataset.view === '1';
+          await updateDoc(doc(db, 'users', uid), { canViewAll: view });
+          await refreshAllData();
+        });
+      });
+    }
+
+    function statusClass(status) {
+      if (status === 'present') return 'status-present';
+      if (status === 'missing') return 'status-missing';
+      if (status === 'extra') return 'status-extra';
+      return '';
+    }
+
+    function renderSoldiersForReport() {
+      const platoonId = el('reportPlatoonSelect').value;
+      const teamId = el('reportTeamSelect').value;
+
+      let soldiers = state.soldiers.filter((s) => s.platoonId === platoonId);
+      if (teamId && teamId !== 'all') soldiers = soldiers.filter((s) => s.teamId === teamId);
+
+      const container = el('soldiersForReport');
+      container.innerHTML = '';
+
+      soldiers.sort((a, b) => a.name.localeCompare(b.name, 'he')).forEach((s) => {
+        if (!state.reportDraft[s.id]) state.reportDraft[s.id] = 'none';
+        const row = document.createElement('div');
+        row.className = `soldier-row ${statusClass(state.reportDraft[s.id])}`;
+        row.innerHTML = `
+          <div>
+            <strong>${s.name}</strong>
+            <div class="muted">${platoonNameById(s.platoonId)} | ${(state.teams.find(t => t.id === s.teamId)?.name) || 'ללא צוות'}</div>
+          </div>
+          <div class="status-group">
+            <button class="btn-ok" data-sid="${s.id}" data-status="present">V</button>
+            <button class="btn-danger" data-sid="${s.id}" data-status="missing">X</button>
+            <button class="btn-soft" data-sid="${s.id}" data-status="none">0</button>
+            <button style="background:#f2c53d;" data-sid="${s.id}" data-status="extra">?</button>
+          </div>
+        `;
+        container.appendChild(row);
+      });
+
+      container.querySelectorAll('button[data-sid]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const sid = btn.dataset.sid;
+          const status = btn.dataset.status;
+          state.reportDraft[sid] = status;
+          renderSoldiersForReport();
+        });
+      });
+    }
+
+    function renderRecipientsSelector() {
+      const wrap = el('reportRecipientsWrap');
+      const box = el('reportRecipients');
+      if (!wrap || !box || !state.profile) return;
+
+      const r = state.profile.role;
+      if (r !== 'class_commander' && r !== 'soldier_reporter') {
+        wrap.classList.add('hidden');
+        return;
+      }
+
+      wrap.classList.remove('hidden');
+      const mePlatoonId = state.profile.platoonId || '';
+      const candidates = state.users.filter((u) => {
+        if (u.uid === state.profile.uid) return false;
+        if (u.role === 'company_commander') return true;
+        if (u.role === 'platoon_commander' && u.platoonId === mePlatoonId) return true;
+        return false;
+      });
+
+      if (!candidates.length) {
+        box.innerHTML = '<div class="muted">לא נמצאו נמענים. הוסיפו מ"פ/מ"מ עם טלפון במערכת.</div>';
+        return;
+      }
+
+      box.innerHTML = '<div style="margin-bottom:6px;"><strong>נמענים לדוח (וואטסאפ)</strong></div>';
+      candidates.forEach((u) => {
+        const row = document.createElement('label');
+        row.style.display = 'block';
+        row.style.marginBottom = '4px';
+        row.innerHTML = `<input type="checkbox" data-recipient-uid="${u.uid}" checked /> ${u.fullName} (${roleLabel(u.role)}) ${u.phone ? '- ' + u.phone : '- ללא טלפון'}`;
+        box.appendChild(row);
+      });
+    }
+
+    function selectedRecipients() {
+      const checks = Array.from(document.querySelectorAll('input[data-recipient-uid]:checked'));
+      const selectedUids = checks.map((c) => c.getAttribute('data-recipient-uid'));
+      const recipients = state.users.filter((u) => selectedUids.includes(u.uid));
+      const phones = recipients
+        .map((u) => (u.phone || '').replace(/[^\d+]/g, ''))
+        .filter(Boolean)
+        .map((p) => p.startsWith('+') ? p : ('+972' + p.replace(/^0/, '')));
+      return { recipients, phones };
+    }
+
+    function openWhatsAppForLastReport() {
+      if (!state.lastReportText) {
+        showError('אין דוח אחרון לשליחה. קודם שמור/י דוח.');
+        return;
+      }
+      if (!state.lastReportPhones.length) {
+        showError('אין לנמענים טלפון וואטסאפ תקין.');
+        return;
+      }
+
+      state.lastReportPhones.forEach((phone) => {
+        const normalized = phone.replace(/[^\d]/g, '');
+        const url = `https://wa.me/${normalized}?text=${encodeURIComponent(state.lastReportText)}`;
+        window.open(url, '_blank');
+      });
+      showError('נפתחו חלונות וואטסאפ לנמענים שנבחרו.');
+    }
+
+    function fmtDate(ts) {
+      if (!ts) return '-';
+      const d = ts.toDate ? ts.toDate() : new Date(ts);
+      return d.toLocaleString('he-IL');
+    }
+
+    function renderReports() {
+      const tbody = el('reportsTable').querySelector('tbody');
+      tbody.innerHTML = '';
+
+      const filterPlatoonId = el('filterPlatoon').value;
+      const filterDate = el('filterDate').value;
+
+      let reports = [...state.reports];
+      if (filterPlatoonId && filterPlatoonId !== 'all') {
+        reports = reports.filter((r) => r.platoonId === filterPlatoonId);
+      }
+      if (filterDate) {
+        reports = reports.filter((r) => {
+          if (!r.createdAt) return false;
+          const d = r.createdAt.toDate ? r.createdAt.toDate() : new Date(r.createdAt);
+          const dStr = d.toISOString().slice(0, 10);
+          return dStr === filterDate;
+        });
+      }
+
+      reports.forEach((r) => {
+        const tr = document.createElement('tr');
+        const platoonName = platoonNameById(r.platoonId);
+        const summary = `נוכחים: ${r.summary?.present || 0}, חסרים: ${r.summary?.missing || 0}, לא דווח: ${r.summary?.none || 0}`;
+        const details = (r.entries || []).map((e) => `${e.name}: ${e.status}`).join(' | ');
+        tr.innerHTML = `
+          <td>${fmtDate(r.createdAt)}</td>
+          <td>${platoonName}</td>
+          <td>${r.createdByName || '-'}</td>
+          <td>${summary}</td>
+          <td>${details || '-'}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function saveReport() {
+      const platoonId = el('reportPlatoonSelect').value;
+      if (!platoonId) return showError('אין מחלקה לדיווח.');
+
+      if (!isCompanyViewer() && platoonId !== state.profile.platoonId) {
+        return showError('אין הרשאה לדווח עבור מחלקה זו.');
+      }
+
+      const entries = state.soldiers
+        .filter((s) => s.platoonId === platoonId)
+        .map((s) => ({
+          soldierId: s.id,
+          name: s.name,
+          teamId: s.teamId || null,
+          status: state.reportDraft[s.id] || 'none'
+        }));
+
+      const summary = {
+        present: entries.filter((e) => e.status === 'present').length,
+        missing: entries.filter((e) => e.status === 'missing').length,
+        extra: entries.filter((e) => e.status === 'extra').length,
+        none: entries.filter((e) => e.status === 'none').length
+      };
+
+      const recipientPack = selectedRecipients();
+      const recipientsMeta = recipientPack.recipients.map((u) => ({ uid: u.uid, name: u.fullName || '', role: u.role || '', phone: u.phone || '' }));
+
+      await addDoc(collection(db, 'reports'), {
+        companyCode: state.profile.companyCode,
+        platoonId,
+        note: el('reportNote').value.trim(),
+        createdBy: state.profile.uid,
+        createdByName: state.profile.fullName,
+        createdByRole: state.profile.role,
+        createdAt: serverTimestamp(),
+        summary,
+        recipients: recipientsMeta,
+        entries
+      });
+
+      const platoonName = platoonNameById(platoonId);
+      state.lastReportText = `דוח נוכחות - ${platoonName}\nמדווח/ת: ${state.profile.fullName}\nנוכחים: ${summary.present}, חסרים: ${summary.missing}, חריג: ${summary.extra}, לא דווח: ${summary.none}${el('reportNote').value.trim() ? ('\nהערה: ' + el('reportNote').value.trim()) : ''}`;
+      state.lastReportPhones = recipientPack.phones;
+
+      el('reportNote').value = '';
+      showError('הדוח נשמר בהצלחה. ניתן ללחוץ "שלח בוואטסאפ לנמענים".');
+      setTimeout(clearError, 2200);
+      await refreshAllData();
+    }
+
+    async function saveCompanyAccessCode() {
+      if (state.profile.role !== 'company_commander') {
+        showError('רק מפקדת פלוגה יכולה לעדכן קוד גישה.');
+        return;
+      }
+      const code = el('companyAccessCodeInput').value.trim();
+      if (!code) {
+        showError('יש להזין קוד גישה.');
+        return;
+      }
+      await updateDoc(doc(db, 'companies', state.profile.companyCode), { accessCode: code });
+      showError('קוד הגישה עודכן בהצלחה.');
+      setTimeout(clearError, 1600);
+      el('companyAccessCodeInput').value = '';
+    }
+
+    async function addPlatoon() {
+      if (state.profile.role !== 'company_commander') {
+        showError('רק מפקדת פלוגה יכולה ליצור מחלקה ידנית.');
+        return;
+      }
+      const name = el('newPlatoonName').value.trim();
+      if (!name) return;
+      await addDoc(collection(db, 'platoons'), {
+        companyCode: state.profile.companyCode,
+        name,
+        createdAt: serverTimestamp(),
+        commanderUid: null
+      });
+      el('newPlatoonName').value = '';
+      await refreshAllData();
+    }
+
+    async function addTeam() {
+      const platoonId = el('teamPlatoonSelect').value;
+      const name = el('newTeamName').value.trim();
+      if (!platoonId || !name) return;
+
+      if ((state.profile.role === 'platoon_commander' || state.profile.role === 'class_commander') && platoonId !== state.profile.platoonId) {
+        showError('מ"מ יכולה להוסיף צוות רק למחלקה שלה.');
+        return;
+      }
+
+      await addDoc(collection(db, 'teams'), {
+        companyCode: state.profile.companyCode,
+        platoonId,
+        name,
+        createdAt: serverTimestamp()
+      });
+      el('newTeamName').value = '';
+      await refreshAllData();
+    }
+
+    async function addSoldier() {
+      const platoonId = el('soldierPlatoonSelect').value;
+      const teamId = el('soldierTeamSelect').value;
+      const name = el('newSoldierName').value.trim();
+      if (!platoonId || !name) return;
+
+      if ((state.profile.role === 'platoon_commander' || state.profile.role === 'class_commander') && platoonId !== state.profile.platoonId) {
+        showError('מ"מ יכולה להוסיף חיילים רק למחלקה שלה.');
+        return;
+      }
+
+      await addDoc(collection(db, 'soldiers'), {
+        companyCode: state.profile.companyCode,
+        platoonId,
+        teamId: teamId || null,
+        name,
+        active: true,
+        createdAt: serverTimestamp()
+      });
+      el('newSoldierName').value = '';
+      await refreshAllData();
+    }
+
+    async function refreshAllData() {
+      clearError();
+      // מציגים את האפליקציה מיד אחרי התחברות, גם אם טעינת נתונים נכשלת.
+      renderScaffold();
+      await loadCoreData();
+      renderAllSelects();
+      renderMyUserCard();
+      renderUsersDirectory();
+      renderCompanyDashboard();
+      renderPermissions();
+      renderReports();
+    }
+
+        async function bootLoggedIn(user) {
+      state.user = user;
+      state.profile = await loadProfile(user.uid);
+
+      // אכיפת מ"פ יחידה אחת לכל פלוגה גם בזמן כניסה.
+      if (state.profile.role === 'company_commander') {
+        const companySnap = await getDoc(doc(db, 'companies', state.profile.companyCode));
+        const ownerUid = companySnap.exists() ? companySnap.data()?.createdBy : null;
+        if (ownerUid && ownerUid !== user.uid) {
+          await signOut(auth);
+          throw new Error('בפלוגה זו קיימת מ"פ אחרת כמנהלת ראשית.');
+        }
+      }
+
+      await refreshAllData();
+      state.bootDone = true;
+    }
+
+    function switchAuthMode(mode) {
+      const loginView = el('loginView');
+      const registerView = el('registerView');
+      const resetRequestView = el('resetRequestView');
+      const resetCompleteView = el('resetCompleteView');
+      const showLoginBtn = el('showLoginBtn');
+      const showRegisterBtn = el('showRegisterBtn');
+      const authTitle = el('authTitle');
+
+      const isLogin = mode === 'login';
+      const isRegister = mode === 'register';
+      const isResetRequest = mode === 'reset-request';
+      const isResetComplete = mode === 'reset-complete';
+
+      if (!isLogin) toggleForgotPassword(false);
+      loginView.classList.toggle('hidden', !isLogin);
+      registerView.classList.toggle('hidden', !isRegister);
+      resetRequestView.classList.toggle('hidden', !isResetRequest);
+      resetCompleteView.classList.toggle('hidden', !isResetComplete);
+
+      showLoginBtn.className = isLogin ? 'btn-primary' : 'btn-soft';
+      showRegisterBtn.className = isRegister ? 'btn-primary' : 'btn-soft';
+      showLoginBtn.classList.toggle('hidden', isResetComplete);
+      showRegisterBtn.classList.toggle('hidden', isResetComplete);
+
+      if (isResetRequest) {
+        const loginEmail = el('loginEmail')?.value?.trim() || '';
+        if (loginEmail) el('resetEmail').value = loginEmail;
+      }
+
+      if (authTitle) {
+        authTitle.textContent = isResetComplete ? 'החלפת סיסמה' : (isResetRequest ? 'שחזור סיסמה' : 'כניסה / הרשמה');
+      }
+    }
+
+    function updateRegisterRoleFields() {
+      const role = el('regRoleSelect').value;
+      const platoonRow = el('platoonNameRow');
+      const companyRow = el('companyNameRow');
+      const isPlatoonScopedRole = role === 'platoon_commander' || role === 'class_commander' || role === 'soldier_reporter';
+
+      platoonRow.classList.toggle('hidden', !isPlatoonScopedRole);
+      companyRow.classList.toggle('hidden', role !== 'company_commander');
+
+      if (!isPlatoonScopedRole) {
+        el('regPlatoonName').value = '';
+      }
+      if (role !== 'company_commander') {
+        el('regCompanyName').value = '';
+      }
+    }
+
+    el('showLoginBtn').addEventListener('click', () => switchAuthMode('login'));
+    el('showRegisterBtn').addEventListener('click', () => switchAuthMode('register'));
+    el('regRoleSelect').addEventListener('change', updateRegisterRoleFields);
+    el('registerBtn').addEventListener('click', async () => {
+      try { await register(); } catch (e) { showError(e.message); }
+    });
+
+    el('loginBtn').addEventListener('click', async () => {
+      try { await login(); } catch (_) {}
+    });
+
+    el('forgotPasswordBtn').addEventListener('click', () => {
+      switchAuthMode('reset-request');
+      clearError();
+    });
+
+    el('sendResetLinkBtn').addEventListener('click', async () => {
+      const email = el('resetEmail').value.trim();
+      await resetPassword(email);
+    });
+
+    el('applyNewPasswordBtn').addEventListener('click', async () => {
+      await applyNewPasswordFromCode();
+    });
+
+    el('backToLoginBtn').addEventListener('click', () => {
+      switchAuthMode('login');
+      clearError();
+    });
+
+    el('backToLoginFromCompleteBtn').addEventListener('click', () => {
+      switchAuthMode('login');
+      clearError();
+    });
+
+    el('logoutBtn').addEventListener('click', async () => {
+      await signOut(auth);
+    });
+    el('goMainBtn').addEventListener('click', () => setAppPage('main'));
+    el('goSettingsBtn').addEventListener('click', () => setAppPage('settings'));
+
+    el('toggleCommanderReportBtn').addEventListener('click', () => {
+      state.commanderReportEnabled = !state.commanderReportEnabled;
+      renderScaffold();
+      renderCompanyDashboard();
+    });
+    el('toggleMmReportBtn').addEventListener('click', () => {
+      state.mmReportEnabled = !state.mmReportEnabled;
+      renderScaffold();
+    });
+    el('addPlatoonBtn').addEventListener('click', async () => {
+      try { await addPlatoon(); } catch (e) { showError(e.message); }
+    });
+
+    el('addTeamBtn').addEventListener('click', async () => {
+      try { await addTeam(); } catch (e) { showError(e.message); }
+    });
+
+    el('addSoldierBtn').addEventListener('click', async () => {
+      try { await addSoldier(); } catch (e) { showError(e.message); }
+    });
+
+    el('reportPlatoonSelect').addEventListener('change', refreshTeamSelects);
+    el('reportTeamSelect').addEventListener('change', renderSoldiersForReport);
+    el('soldierPlatoonSelect').addEventListener('change', refreshTeamSelects);
+
+    el('saveReportBtn').addEventListener('click', async () => {
+      try { await saveReport(); } catch (e) { showError(e.message); }
+    });
+
+    el('refreshReportsBtn').addEventListener('click', renderReports);
+    el('filterPlatoon').addEventListener('change', renderReports);
+    el('filterDate').addEventListener('change', renderReports);
+
+    switchAuthMode('login');
+    updateRegisterRoleFields();
+    const savedCompanyCode = (localStorage.getItem('attendanceCompanyCode') || '').trim();
+    if (savedCompanyCode) {
+      el('loginCompanyCode').value = savedCompanyCode;
+      if (!el('regCompanyCode').value) el('regCompanyCode').value = savedCompanyCode;
+    }
+    prepareResetFromUrl();
+
+        onAuthStateChanged(auth, async (user) => {
+      try {
+        if (!user) {
+          state.user = null;
+          state.profile = null;
+          state.bootDone = false;
+          state.appPage = 'main';
+          el('appMain').classList.add('hidden');
+          el('authCard').classList.remove('hidden');
+          el('userTop').textContent = 'לא מחובר';
+          if (!state.authBusy) {
+            // לא מנקים הודעה בזמן ניסיון התחברות, כדי לא להסתיר שגיאה אמיתית.
+            clearError();
+          }
+          return;
+        }
+
+        // אם כבר הועלה ידנית מתוך login(), לא מריצים שוב.
+        if (!state.bootDone) {
+          await bootLoggedIn(user);
+        }
+      } catch (e) {
+        showError(e.message || 'שגיאה בטעינת המשתמש');
+      }
+    });
+  </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

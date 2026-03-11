@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ניהול נוכחות - דיווח גמיש</title>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; background: #eef2f3; margin: 0; padding: 10px; color: #333; padding-bottom: 120px; }
+        .header { background: #004a99; color: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; position: sticky; top: 0; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; text-align: center; margin-top: 10px; }
+        .stat-card { background: rgba(255,255,255,0.1); padding: 8px; border-radius: 8px; font-size: 0.85em; cursor: pointer; }
+        .stat-num { display: block; font-size: 1.4em; font-weight: bold; }
+        
+        .details-box { background: white; margin: 5px 0 15px 0; padding: 12px; border-radius: 10px; display: none; font-size: 0.9em; border-right: 5px solid #004a99; }
+        #missing-details { display: block; border-color: #dc3545; }
+
+        .management-section { background: #fff; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px dashed #004a99; display: none; }
+        .item-row { display: flex; gap: 5px; margin-top: 5px; margin-bottom: 10px; }
+        input { padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 1em; }
+        
+        .person-card { background: white; padding: 12px; border-radius: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .btn-group button { border: none; padding: 10px 14px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-left: 2px; }
+        .v-btn { background: #28a745; color: white; }
+        .x-btn { background: #dc3545; color: white; }
+        .q-btn { background: #ffc107; color: black; }
+        
+        .config-box { background: #fff; padding: 12px; border-radius: 10px; margin-bottom: 10px; border: 2px solid #004a99; }
+        .option-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #eee; }
+        .option-row:last-child { border: none; }
+
+        .wa-btn { background: #25D366; color: white; padding: 18px; font-size: 1.2em; width: 100%; box-shadow: 0 4px 10px rgba(0,0,0,0.2); border-radius: 10px; font-weight: bold; }
+        
+        #sendModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; }
+        .modal-content { background: white; width: 90%; max-width: 400px; padding: 20px; border-radius: 15px; text-align: center; }
+        .footer-btns { position: fixed; bottom: 0; left: 0; width: 100%; background: #eef2f3; padding: 10px; box-sizing: border-box; border-top: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-weight:bold;">ניהול נוכחות</span>
+        <button onclick="toggleManagement()" style="background:#fff; color:#004a99; padding:5px 12px; border-radius:6px; border:none;">הגדרות</button>
+    </div>
+    <div class="stats-grid">
+        <div class="stat-card" onclick="toggleSection('present-details')">נוכחים<span id="p-count" class="stat-num">0</span></div>
+        <div class="stat-card" onclick="toggleSection('missing-details')">חסרים<span id="m-count" class="stat-num">0</span></div>
+        <div class="stat-card" onclick="toggleSection('extra-details')">לא ביחידה<span id="e-count" class="stat-num">0</span></div>
+    </div>
+</div>
+
+<div id="present-details" class="details-box"><b>פירוט נוכחים:</b> <span id="list-present"></span></div>
+<div id="missing-details" class="details-box"><b>פירוט חסרים:</b> <span id="list-missing"></span></div>
+<div id="extra-details" class="details-box"><b>פירוט לא ביחידה:</b> <span id="list-extra"></span></div>
+
+<div id="management" class="management-section">
+    <h4>👥 ניהול נמענים</h4>
+    <div class="item-row">
+        <input type="text" id="recipName" placeholder="שם">
+        <input type="tel" id="recipPhone" placeholder="טלפון">
+        <button onclick="addRecipient()" style="background:#28a745; color:white;">+</button>
+    </div>
+    <div id="recipientsList"></div>
+</div>
+
+<input type="text" id="search" style="width:100%; box-sizing:border-box; padding:12px; border:2px solid #004a99; border-radius:8px; margin-bottom:10px;" placeholder="חיפוש חייל..." onkeyup="filter()">
+
+<div id="list"></div>
+
+<div class="config-box">
+    <div style="font-weight:bold; color:#004a99; margin-bottom:5px;">מה לכלול בדוח הווטסאפ?</div>
+    <div class="option-row">
+        <input type="checkbox" id="includePresent"> <label for="includePresent">הצג שמות של נוכחים</label>
+    </div>
+    <div class="option-row">
+        <input type="checkbox" id="includeExtra"> <label for="includeExtra">הצג שמות של "לא ביחידה"</label>
+    </div>
+    <div style="margin-top:10px; font-size:0.85em; color:gray;">* שמות חסרים תמיד יופיעו בפירוט.</div>
+    <hr>
+    <div id="sendCheckboxes"></div>
+</div>
+
+<div class="footer-btns">
+    <button class="wa-btn" onclick="openSendQueue()">שלח דיווח לווטסאפ</button>
+</div>
+
+<div id="sendModal">
+    <div class="modal-content">
+        <h3>תחנת שליחה</h3>
+        <div id="queueList"></div>
+        <button style="background:#333; color:white; width:100%; margin-top:15px; border:none; padding:10px; border-radius:5px;" onclick="closeModal()">סגור</button>
+    </div>
+</div>
+
+<script>
+    const initialNames = ["אביב", "אופיר", "אורי ביידר", "אורי כהן", "אורי מרציאנו", "אושר", "איליה", "איתי", "איתמר", "בן", "דביר", "דניאל", "הראל גאוטה", "ולדימיר", "חביב", "אן", "יגל אברהם", "יגל שושני", "יואב", "לירון", "מאור שאבי", "מתן", "נהוראי", "נווה", "ניב", "עמית", "עקיבא", "קובי", "רון", "שהם", "שיקו הדדי"];
+
+    let data = JSON.parse(localStorage.getItem('myDepartmentList')) || initialNames.sort().map((n, i) => ({ id: Date.now() + i, name: n, status: 'none' }));
+    let recipients = JSON.parse(localStorage.getItem('reportRecipients')) || [];
+
+    function save() {
+        localStorage.setItem('myDepartmentList', JSON.stringify(data));
+        localStorage.setItem('reportRecipients', JSON.stringify(recipients));
+        render();
+        renderRecipients();
+    }
+
+    function toggleSection(id) {
+        const el = document.getElementById(id);
+        el.style.display = (el.style.display === 'block') ? 'none' : 'block';
+    }
+
+    function renderRecipients() {
+        const listDiv = document.getElementById('recipientsList');
+        const checkDiv = document.getElementById('sendCheckboxes');
+        listDiv.innerHTML = ''; checkDiv.innerHTML = '';
+        recipients.forEach((r, i) => {
+            listDiv.innerHTML += `<div class="item-row"><span>${r.name}</span> <button onclick="deleteRecipient(${i})">X</button></div>`;
+            checkDiv.innerHTML += `<div class="option-row"><input type="checkbox" class="target-checkbox" data-name="${r.name}" value="${r.phone}"> ${r.name}</div>`;
+        });
+    }
+
+    function render() {
+        const container = document.getElementById('list');
+        container.innerHTML = '';
+        let p=[], m=[], e=[];
+        data.forEach(item => {
+            if(item.status==='present') p.push(item.name);
+            if(item.status==='missing') m.push(item.name);
+            if(item.status==='extra') e.push(item.name);
+            const div = document.createElement('div');
+            div.className = `person-card status-${item.status === 'extra' ? 'not-in-unit' : item.status}`;
+            div.innerHTML = `<div class="name">${item.name}</div>
+                <div class="btn-group">
+                    <button class="v-btn" onclick="updateStatus(${item.id}, 'present')">V</button>
+                    <button class="x-btn" onclick="updateStatus(${item.id}, 'missing')">X</button>
+                    <button class="q-btn" onclick="updateStatus(${item.id}, 'extra')">?</button>
+                </div>`;
+            container.appendChild(div);
+        });
+        document.getElementById('p-count').innerText = p.length;
+        document.getElementById('m-count').innerText = m.length;
+        document.getElementById('e-count').innerText = e.length;
+        document.getElementById('list-present').innerText = p.join(', ');
+        document.getElementById('list-missing').innerText = m.join(', ');
+        document.getElementById('list-extra').innerText = e.join(', ');
+    }
+
+    function generateReportText() {
+        const showPresent = document.getElementById('includePresent').checked;
+        const showExtra = document.getElementById('includeExtra').checked;
+        
+        let txt = `*דו"ח נוכחות - ${new Date().toLocaleDateString('he-IL')}*\n`;
+        txt += `------------------------\n`;
+        txt += `✅ נוכחים: ${data.filter(x=>x.status==='present').length}\n`;
+        if(showPresent) {
+            const pNames = data.filter(x=>x.status==='present').map(x=>x.name);
+            if(pNames.length > 0) txt += `_(${pNames.join(', ')})_\n`;
+        }
+        
+        txt += `❌ חסרים: ${data.filter(x=>x.status==='missing').length}\n`;
+        const mNames = data.filter(x=>x.status==='missing').map(x=>x.name);
+        if(mNames.length > 0) txt += `*פירוט:* ${mNames.join(', ')}\n`;
+        
+        txt += `❓ לא ביחידה: ${data.filter(x=>x.status==='extra').length}\n`;
+        if(showExtra) {
+            const eNames = data.filter(x=>x.status==='extra').map(x=>x.name);
+            if(eNames.length > 0) txt += `_(${eNames.join(', ')})_\n`;
+        }
+        
+        return txt;
+    }
+
+    function openSendQueue() {
+        const selected = Array.from(document.querySelectorAll('.target-checkbox:checked'));
+        if(selected.length === 0) { alert("בחר נמען"); return; }
+        const report = generateReportText();
+        const queueList = document.getElementById('queueList');
+        queueList.innerHTML = '';
+        selected.forEach(cb => {
+            const div = document.createElement('div');
+            div.style = "display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #eee;";
+            div.innerHTML = `<span>${cb.getAttribute('data-name')}</span> <button class="v-btn" onclick="sendIndividual('${cb.value}', '${encodeURIComponent(report)}', this)">שלח</button>`;
+            queueList.appendChild(div);
+        });
+        document.getElementById('sendModal').style.display = 'flex';
+    }
+
+    function sendIndividual(phone, msg, btn) {
+        window.open(`https://wa.me/${phone.replace(/\D/g,'')}?text=${msg}`, '_blank');
+        btn.innerText = "נפתח"; btn.style.background = "#ccc";
+    }
+
+    function closeModal() { document.getElementById('sendModal').style.display = 'none'; }
+    function updateStatus(id, s) { data.find(x=>x.id===id).status=s; save(); }
+    function toggleManagement() { const m = document.getElementById('management'); m.style.display = m.style.display === 'block' ? 'none' : 'block'; }
+    function addRecipient() { const n = document.getElementById('recipName'), p = document.getElementById('recipPhone'); if(n.value && p.value) { recipients.push({name:n.value, phone:p.value}); n.value=''; p.value=''; save(); } }
+    function deleteRecipient(i) { recipients.splice(i,1); save(); }
+    function filter() { const v = document.getElementById('search').value.toLowerCase(); document.querySelectorAll('.person-card').forEach(c => { c.style.display = c.querySelector('.name').innerText.toLowerCase().includes(v) ? 'flex' : 'none'; }); }
+
+    render(); renderRecipients();
+</script>
+</body>
+</html>
