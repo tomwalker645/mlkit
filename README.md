@@ -12,6 +12,23 @@ Note: due to how this repo works, we no longer accept pull requests directly. In
 
 ---
 
+> ## ❗ למה האתר לא מתעדכן? — פעולה נדרשת עכשיו
+>
+> האתר לא מתעדכן כי **קובץ ה-CI/CD עדיין לא על ענף `master`** — הוא נמצא בלשונית PR שממתינה למיזוג.
+>
+> ### 👉 מה לעשות עכשיו — שלב אחד בלבד:
+>
+> 1. לכו לדף: **https://github.com/tomwalker645/mlkit/pulls**
+> 2. לחצו על ה-PR בשם **"Fix Firebase deploy workflow never triggering"**
+> 3. לחצו על הכפתור הירוק **"Merge pull request"** ← **זה הכפתור החשוב!**
+> 4. אשרו — **"Confirm merge"**
+>
+> ✅ לאחר המיזוג, האתר יתעדכן אוטומטית תוך ~60 שניות.
+>
+> > **⚠️ תנאי מוקדם:** וודאו שהגדרתם את ה-secret `FIREBASE_SERVICE_ACCOUNT` לפי שלב 3 למטה. בלי זה, הריצה תיכשל.
+
+---
+
 ## 🚀 הגדרת העלאה אוטומטית לאתר (Firebase CI/CD)
 
 כדי שכל שינוי שנדחף ל-`master` יופיע אוטומטית באתר, יש לבצע **פעם אחת** את ההגדרה הבאה.
@@ -75,16 +92,14 @@ Note: due to how this repo works, we no longer accept pull requests directly. In
 
 ### שלב 4 — בדיקה שהכל עובד ✅
 
-לאחר שסיימתם את שלבים 1–3, בצעו בדיקה פשוטה כדי לוודא שההגדרה הצליחה:
+לאחר שסיימתם **לאשר את ה-secret (שלב 3)** ו**מיזגתם את ה-PR הזה ל-master**, המיזוג עצמו יפעיל ריצה אוטומטית ב-GitHub Actions.
 
-1. **דחפו שינוי קטן לענף `master`** — לדוגמה, ערכו שורה בקובץ כלשהו, שמרו, ו-commit + push לענף `master`.
-
-2. **עברו ל-GitHub Actions:**  
+1. **עברו ל-GitHub Actions:**  
    היכנסו לדף:  
    **`https://github.com/tomwalker645/mlkit/actions`**  
    תראו ריצה חדשה מופיעה (עם ספינר ✨ צהוב בזמן הריצה ו-✅ ירוק לאחר הצלחה).
 
-3. **בדקו את האתר:**  
+2. **בדקו את האתר:**  
    עברו לכתובת https://attendance-ploga.web.app  
    תוך כ-60 שניות האתר אמור להתעדכן עם השינוי שדחפתם.
 
