@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Predictor Analysis Tool  (v2.1)
+Predictor Analysis Tool  (v2.2)
 ================================
 Reads a Telegram channel export (result_filtered.json) containing Hebrew
 rocket-alert messages, and finds which settlements are the best predictors
@@ -29,11 +29,20 @@ Usage
     py analyze_predictors_en_safe.py --input result_filtered.json \
         --target AUTO_BEIT_HAG --hebrew --output output.txt
 
+    # Styled HTML table output (opens in any browser):
+    py analyze_predictors_en_safe.py --input result_filtered.json \
+        --target AUTO_BEIT_HAG --html --output top10.html
+
 Output
 ------
   - Table 1: Top N settlements by precision (P(target|settlement fires first))
   - Table 2: Top K operational triggers (weighted score of precision + lead-time + volume)
   - Table 2+: Additional operational triggers beyond top K
+
+New in v2.2
+-----------
+  --html            Write a self-contained styled HTML table instead of plain text.
+                    Combine with --output FILE.html; defaults to output.html.
 
 New in v2.1
 -----------
@@ -62,7 +71,7 @@ from datetime import datetime, timedelta
 from bisect import bisect_left
 from statistics import median
 
-VERSION = "2.1"
+VERSION = "2.2"
 
 DEFAULT_TARGET = "AUTO_BEIT_HAG"
 DEFAULT_MIN_VOLUME = 20
@@ -532,6 +541,375 @@ def auto_pick_target(events_by_settlement):
     return cands[0]
 
 
+def _precision_color(p: float) -> str:
+    """Return a CSS background color for a precision fraction (0–1).
+
+    Green (≥70 %), yellow-green (≥50 %), orange (≥30 %), light-red (<30 %).
+    """
+    if p >= 0.70:
+        return "#4caf50"   # green
+    if p >= 0.50:
+        return "#8bc34a"   # light green
+    if p >= 0.30:
+        return "#ffc107"   # amber
+    return "#ef9a9a"       # soft red
+
+
+def _lead_bar_width(sec) -> int:
+    """Convert average lead time to a progress-bar percentage (0–100).
+
+    Clamps at MAX_LEAD_SEC so 600 s = 100 %.
+    """
+    if sec is None or (isinstance(sec, float) and math.isnan(sec)):
+        return 0
+    return min(100, int(sec / MAX_LEAD_SEC * 100))
+
+
+def render_html(
+    top_n_rows,
+    all_recs,
+    target_key,
+    target_count,
+    start_dt,
+    end_dt,
+    args,
+    force_set,
+    display_name_fn,
+):
+    """Return a self-contained UTF-8 HTML string for the predictor analysis results."""
+
+    target_display = display_name_fn(target_key)
+    top_k = args.top_k
+    recs = all_recs[:top_k]
+    extra_recs = all_recs[top_k:]
+    force_list = ", ".join(sorted(force_set)) if force_set else "—"
+
+    def esc(s):
+        """Minimal HTML escaping."""
+        return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    # ── meta row helpers ────────────────────────────────────────────────────
+    def meta(label, value):
+        return (
+            f'<tr><td class="meta-label">{esc(label)}</td>'
+            f'<td class="meta-value">{esc(str(value))}</td></tr>'
+        )
+
+    # ── Table 1 rows ────────────────────────────────────────────────────────
+    t1_rows = []
+    for i, r in enumerate(top_n_rows, 1):
+        name = display_name_fn(r["settlement"])
+        is_force = r.get("force_checked", False)
+        name_cell = esc(name)
+        if is_force:
+            name_cell = (
+                f'<span class="force-name">{esc(name)}</span>'
+                f'<span class="force-badge" title="Force-checked (low volume)">★</span>'
+            )
+        color = _precision_color(r["precision"])
+        bar_w = _lead_bar_width(r["avg_lead_sec"])
+        avg_lead_str = esc(format_lead(r["avg_lead_sec"]))
+        med_lead_str = esc(format_lead(r["med_lead_sec"]))
+
+        t1_rows.append(
+            f"""
+        <tr class="{'force-row' if is_force else ''}">
+          <td class="rank">{i}</td>
+          <td class="sname">{name_cell}</td>
+          <td class="num">{r['total_events']}</td>
+          <td class="prec" style="background:{color};color:#fff;font-weight:700">
+            {pct(r['precision'])}
+          </td>
+          <td class="lead">
+            <div class="lead-wrap">
+              <div class="lead-bar" style="width:{bar_w}%"></div>
+              <span class="lead-text">{avg_lead_str}</span>
+            </div>
+          </td>
+          <td class="lead-med">{med_lead_str}</td>
+          <td class="num">{pct(r['p_settlement_given_target'])}</td>
+          <td class="hits">{r['success_count']}/{r['total_events']}</td>
+        </tr>"""
+        )
+
+    # ── Table 2 rows ────────────────────────────────────────────────────────
+    def t2_row(rank, r):
+        name = display_name_fn(r["settlement"])
+        is_force = r.get("force_checked", False)
+        name_cell = esc(name)
+        if is_force:
+            name_cell = (
+                f'<span class="force-name">{esc(name)}</span>'
+                f'<span class="force-badge" title="Force-checked (low volume)">★</span>'
+            )
+        color = _precision_color(r["precision"])
+        return (
+            f'<tr class="{"force-row" if is_force else ""}">'
+            f'<td class="rank">{rank}</td>'
+            f'<td class="sname">{name_cell}</td>'
+            f'<td class="num">{r["total_events"]}</td>'
+            f'<td class="prec" style="background:{color};color:#fff;font-weight:700">'
+            f'{pct(r["precision"])}</td>'
+            f'<td class="lead"><div class="lead-wrap">'
+            f'<div class="lead-bar" style="width:{_lead_bar_width(r["avg_lead_sec"])}%"></div>'
+            f'<span class="lead-text">{esc(format_lead(r["avg_lead_sec"]))}</span>'
+            f"</div></td>"
+            f'<td class="score">{r["operational_score"]:.3f}</td>'
+            f"</tr>"
+        )
+
+    t2_rows_html = ""
+    if recs:
+        for i, r in enumerate(recs, 1):
+            t2_rows_html += t2_row(i, r)
+    else:
+        t2_rows_html = (
+            '<tr><td colspan="6" class="no-data">'
+            "No recommendations (insufficient lead-time data).</td></tr>"
+        )
+
+    t2plus_html = ""
+    if extra_recs:
+        for i, r in enumerate(extra_recs, top_k + 1):
+            t2plus_html += t2_row(i, r)
+    else:
+        t2plus_html = (
+            '<tr><td colspan="6" class="no-data">No additional triggers.</td></tr>'
+        )
+
+    # Use RTL + Hebrew when --hebrew is set, otherwise standard LTR English
+    html_lang = "he" if args.hebrew else "en"
+    html_dir = "rtl" if args.hebrew else "ltr"
+
+    # Build a readable target display for the meta card
+    if target_display != target_key:
+        target_meta_value = f"{target_key} ({target_display})"
+    else:
+        target_meta_value = target_key
+
+    html = f"""<!DOCTYPE html>
+<html lang="{html_lang}" dir="{html_dir}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Predictor Analysis — {esc(target_display)}</title>
+<style>
+  /* ── reset & base ── */
+  *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #f0f2f5;
+    color: #222;
+    padding: 24px 16px;
+  }}
+
+  /* ── page wrapper ── */
+  .page {{ max-width: 1100px; margin: 0 auto; }}
+
+  /* ── header ── */
+  .page-header {{
+    background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
+    color: #fff;
+    border-radius: 10px 10px 0 0;
+    padding: 20px 28px 16px;
+  }}
+  .page-header h1 {{ font-size: 1.5rem; font-weight: 700; letter-spacing: .5px; }}
+  .page-header .subtitle {{ font-size: .85rem; opacity: .8; margin-top: 4px; }}
+
+  /* ── meta card ── */
+  .meta-card {{
+    background: #fff;
+    padding: 14px 28px;
+    border-left: 4px solid #1a237e;
+    margin-bottom: 20px;
+  }}
+  table.meta {{ border-collapse: collapse; font-size: .85rem; }}
+  .meta-label {{ color: #555; padding: 2px 28px 2px 0; white-space: nowrap; }}
+  .meta-value {{ color: #111; font-weight: 600; }}
+
+  /* ── section cards ── */
+  .card {{
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    margin-bottom: 24px;
+    overflow: hidden;
+  }}
+  .card-header {{
+    background: #1a237e;
+    color: #fff;
+    padding: 10px 20px;
+    font-size: .95rem;
+    font-weight: 700;
+    letter-spacing: .3px;
+  }}
+  .card-header.sec {{ background: #37474f; }}
+
+  /* ── data tables ── */
+  table.data {{
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .88rem;
+  }}
+  table.data thead th {{
+    background: #e8eaf6;
+    color: #1a237e;
+    padding: 9px 12px;
+    text-align: center;
+    font-weight: 700;
+    border-bottom: 2px solid #9fa8da;
+    white-space: nowrap;
+  }}
+  table.data thead th.left {{ text-align: left; }}
+  table.data tbody tr:nth-child(even) {{ background: #fafafa; }}
+  table.data tbody tr:hover {{ background: #e8eaf6; }}
+  table.data tbody tr.force-row {{ background: #fff8e1; }}
+  table.data tbody tr.force-row:hover {{ background: #fff3cd; }}
+  table.data td {{
+    padding: 8px 12px;
+    border-bottom: 1px solid #eeeeee;
+    vertical-align: middle;
+  }}
+  td.rank {{ text-align: center; color: #777; font-weight: 700; width: 36px; }}
+  td.sname {{ text-align: left; min-width: 160px; }}
+  td.num {{ text-align: right; font-variant-numeric: tabular-nums; width: 70px; }}
+  td.prec {{
+    text-align: center;
+    border-radius: 4px;
+    width: 90px;
+    white-space: nowrap;
+  }}
+  td.score {{ text-align: right; font-variant-numeric: tabular-nums; width: 70px; color: #37474f; }}
+  td.hits {{ text-align: right; color: #555; white-space: nowrap; }}
+  td.lead, td.lead-med {{ text-align: center; width: 110px; }}
+  td.no-data {{ text-align: center; padding: 14px; color: #888; font-style: italic; }}
+
+  /* ── force badge ── */
+  .force-badge {{
+    display: inline-block;
+    margin-left: 5px;
+    color: #f57f17;
+    font-size: .75rem;
+    vertical-align: super;
+    cursor: help;
+  }}
+  .force-name {{ font-weight: 600; }}
+
+  /* ── lead-time mini bar ── */
+  .lead-wrap {{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }}
+  .lead-bar {{
+    height: 8px;
+    background: #7986cb;
+    border-radius: 4px;
+    flex-shrink: 0;
+    min-width: 2px;
+    max-width: 80px;
+  }}
+  .lead-text {{ white-space: nowrap; font-size: .82rem; color: #333; }}
+
+  /* ── footer ── */
+  .footer {{
+    text-align: center;
+    font-size: .75rem;
+    color: #999;
+    margin-top: 8px;
+  }}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ── Header ── -->
+  <div class="page-header">
+    <h1>🎯 Predictor Analysis — {esc(target_display)}</h1>
+    <div class="subtitle">v{VERSION} &nbsp;·&nbsp; Which settlements predict an alert in {esc(target_display)}?</div>
+  </div>
+
+  <!-- ── Meta ── -->
+  <div class="meta-card">
+    <table class="meta">
+      {meta("Target", target_meta_value)}
+      {meta("Target events", target_count)}
+      {meta("Date range", str(start_dt)[:10] + "  →  " + str(end_dt)[:10])}
+      {meta("Min volume", args.min_volume)}
+      {meta("Prediction window", f"{MIN_LEAD_SEC}s – {MAX_LEAD_SEC}s")}
+      {meta("Force-checked settlements", force_list)}
+    </table>
+    <p style="font-size:.78rem;color:#888;margin-top:6px">
+      ★ = force-checked (included regardless of min-volume threshold)
+    </p>
+  </div>
+
+  <!-- ── Table 1 ── -->
+  <div class="card">
+    <div class="card-header">📊 Table 1 — Top {args.top_n} Predictors by Precision</div>
+    <table class="data">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th class="left">Settlement</th>
+          <th>Total</th>
+          <th>Precision</th>
+          <th>Avg Lead</th>
+          <th>Med Lead</th>
+          <th>P(sett|tgt)</th>
+          <th>Hits/Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {''.join(t1_rows)}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── Table 2 ── -->
+  <div class="card">
+    <div class="card-header">⚡ Table 2 — Top {top_k} Operational Triggers</div>
+    <table class="data">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th class="left">Settlement</th>
+          <th>Total</th>
+          <th>Precision</th>
+          <th>Avg Lead</th>
+          <th>Score</th>
+        </tr>
+      </thead>
+      <tbody>{t2_rows_html}</tbody>
+    </table>
+  </div>
+
+  <!-- ── Table 2+ ── -->
+  <div class="card">
+    <div class="card-header sec">📋 Table 2+ — Additional Operational Triggers</div>
+    <table class="data">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th class="left">Settlement</th>
+          <th>Total</th>
+          <th>Precision</th>
+          <th>Avg Lead</th>
+          <th>Score</th>
+        </tr>
+      </thead>
+      <tbody>{t2plus_html}</tbody>
+    </table>
+  </div>
+
+  <div class="footer">Generated by Predictor Analysis Tool v{VERSION}</div>
+</div>
+</body>
+</html>
+"""
+    return html
+
+
 def print_safe(text):
     """Print text, falling back to ASCII-safe output on narrow Windows consoles."""
     try:
@@ -563,7 +941,10 @@ def main():
             "--target AUTO_BEIT_HAG --force-check \"להב,להבים,מעון\"\n\n"
             "  # Hebrew output:\n"
             "  py analyze_predictors_en_safe.py --input result_filtered.json "
-            "--target AUTO_BEIT_HAG --hebrew --output output.txt\n"
+            "--target AUTO_BEIT_HAG --hebrew --output output.txt\n\n"
+            "  # Styled HTML table (open in browser):\n"
+            "  py analyze_predictors_en_safe.py --input result_filtered.json "
+            "--target AUTO_BEIT_HAG --html --output top10.html\n"
         ),
     )
     parser.add_argument(
@@ -610,7 +991,7 @@ def main():
         metavar="FILE",
         help=(
             "Write results to FILE in UTF-8 encoding (recommended on Windows). "
-            "If omitted, output is printed to the console."
+            "If omitted, output is printed to the console (or output.html when --html is set)."
         ),
     )
     parser.add_argument(
@@ -636,6 +1017,14 @@ def main():
         "--hebrew",
         action="store_true",
         help="Display settlement names in Hebrew instead of English.",
+    )
+    parser.add_argument(
+        "--html",
+        action="store_true",
+        help=(
+            "Generate a styled self-contained HTML table instead of plain text. "
+            "Use --output FILE.html to specify the output path (default: output.html)."
+        ),
     )
     args = parser.parse_args()
 
@@ -827,6 +1216,26 @@ def main():
 
     output_text = "\n".join(lines) + "\n"
 
+    # ── HTML output path ──────────────────────────────────────────────────────
+    if args.html:
+        html_path = args.output if args.output else "output.html"
+        html_content = render_html(
+            top_n_rows=top_n_rows,
+            all_recs=all_recs,
+            target_key=target_key,
+            target_count=target_count,
+            start_dt=start_dt,
+            end_dt=end_dt,
+            args=args,
+            force_set=force_set,
+            display_name_fn=display_name,
+        )
+        with open(html_path, "w", encoding="utf-8") as fout:
+            fout.write(html_content)
+        print(f"HTML results written to: {html_path}")
+        return
+
+    # ── Plain text output path ────────────────────────────────────────────────
     if args.output:
         # Write directly to a UTF-8 file — no encoding issues on Windows
         with open(args.output, "w", encoding="utf-8") as fout:

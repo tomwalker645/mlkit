@@ -174,19 +174,28 @@ py analyze_predictors_en_safe.py --input result_filtered.json --target AUTO_BEIT
 
 ---
 
-## 🔤 פלט בעברית
+## 🌐 פלט כטבלת HTML (מומלץ!)
 
-להצגת שמות הישובים **בעברית** במקום באנגלית, הוסף `--hebrew`:
+להצגת התוצאות כטבלה מעוצבת בדפדפן, הוסף `--html`:
 
 ```
-py analyze_predictors_en_safe.py --input result_filtered.json --target AUTO_BEIT_HAG --hebrew --output output.txt
+py analyze_predictors_en_safe.py --input result_filtered.json --target AUTO_BEIT_HAG --html --output top10.html
+```
+
+הקובץ `top10.html` ייפתח בכל דפדפן ויציג:
+- **טבלה 1** עם עמודת דיוק (Precision) צבעונית — ירוק לגבוה, אדום לנמוך
+- **מד זמן ממוצע** (כבר מיניאטורי) לכל יישוב
+- **יישובים בעדיפות גיאוגרפית** מסומנים ב-★ על רקע צהוב
+- **טבלה 2 ו-2+** בסקציות נפרדות ברורות
+
+לפתיחה ישירה בדפדפן ב-Windows:
+```
+start top10.html
 ```
 
 ---
 
-
-
-אם רוצה לנתח יישוב אחר ולא בית חגי — קודם כל רצה את הפקודה הזאת כדי לראות אילו יישובים זמינים:
+## 🔍 רוצה לנסות יישוב אחר?
 
 ```
 py analyze_predictors_en_safe.py --input result_filtered.json --list-targets

@@ -1,4 +1,4 @@
-# Predictor Analysis — Rocket Alert Settlement Data  (v2.0)
+# Predictor Analysis — Rocket Alert Settlement Data  (v2.2)
 
 This tool reads a Telegram channel export (`result_filtered.json`) containing
 Hebrew rocket-alert messages and produces two tables:
@@ -19,7 +19,7 @@ Hebrew rocket-alert messages and produces two tables:
 
 ## Quick Start (Windows PowerShell)
 
-**Recommended — write directly to a UTF-8 file with `--output`:**
+**Plain text — write directly to a UTF-8 file with `--output`:**
 
 ```powershell
 cd "C:\Users\User\Downloads"
@@ -27,9 +27,12 @@ py analyze_predictors_en_safe.py --input result_filtered.json --target AUTO_BEIT
 notepad output.txt
 ```
 
-> Using `--output output.txt` writes a proper UTF-8 file directly,
-> so Hebrew characters are always preserved correctly.
-> No need to redirect with `>` at all.
+**Styled HTML table (opens in any browser):**
+
+```powershell
+py analyze_predictors_en_safe.py --input result_filtered.json --target AUTO_BEIT_HAG --html --output top10.html
+start top10.html
+```
 
 **List all available settlements (to pick a custom `--target`):**
 
@@ -50,10 +53,11 @@ py analyze_predictors_en_safe.py --input result_filtered.json --list-targets
 | `--min-volume` | `20` | Minimum alert count for a settlement to be considered |
 | `--top-n` | `10` | Number of rows in Table 1 (precision table) |
 | `--top-k` | `3` | Number of rows in Table 2 (operational triggers) |
-| `--output FILE` | *(console)* | Write results to FILE in UTF-8 (recommended on Windows) |
+| `--output FILE` | *(console / output.html)* | Write results to FILE in UTF-8 (recommended on Windows) |
 | `--list-targets` | — | List all qualifying settlements and exit |
-| `--force-check NAMES` | *(geo-priority)* | Comma-separated Hebrew names always included, even below `--min-volume`. Rows marked `*`. When target is `AUTO_BEIT_HAG`, the six geographic-priority settlements (להב, להבים, תנא עומרים, מעון, סנסנה, שמעה) are added automatically |
+| `--force-check NAMES` | *(geo-priority)* | Comma-separated Hebrew names always included, even below `--min-volume`. Rows marked `★`. When target is `AUTO_BEIT_HAG`, the six geographic-priority settlements (להב, להבים, תנא עומרים, מעון, סנסנה, שמעה) are added automatically |
 | `--hebrew` | — | Display settlement names in Hebrew instead of English |
+| `--html` | — | Generate a self-contained styled HTML table instead of plain text. Defaults to `output.html` if `--output` is not given |
 
 ---
 
