@@ -76,6 +76,174 @@ TIME_MARKERS = [
 # Phrase that marks a rocket/missile alert (Hebrew: "ירי רקטות וטילים")
 ROCKET_PHRASE = "\u05d9\u05e8\u05d9 \u05e8\u05e7\u05d8\u05d5\u05ea \u05d5\u05d8\u05d9\u05dc\u05d9\u05dd"
 
+# ─── Settlement name display: Hebrew → English ────────────────────────────────
+# Keys must be in norm_key() form (no geresh/gershayim, single-spaced).
+# Covers the settlements most commonly seen in Israeli rocket-alert data.
+SETTLEMENT_EN = {
+    # Gaza envelope / south
+    "\u05d0\u05e9\u05e7\u05dc\u05d5\u05df": "Ashkelon",
+    "\u05d0\u05e9\u05d3\u05d5\u05d3": "Ashdod",
+    "\u05e9\u05d3\u05e8\u05d5\u05ea": "Sderot",
+    "\u05e0\u05ea\u05d9\u05d1\u05d5\u05ea": "Netivot",
+    "\u05d0\u05d5\u05e4\u05e7\u05d9\u05dd": "Ofakim",
+    "\u05e0\u05d9\u05e8 \u05e2\u05dd": "Nir Am",
+    "\u05db\u05e4\u05e8 \u05e2\u05d6\u05d4": "Kfar Aza",
+    "\u05e0\u05d7\u05dc \u05e2\u05d5\u05d6": "Nahal Oz",
+    "\u05de\u05d2\u05df": "Magen",
+    "\u05e0\u05d9\u05e8\u05d9\u05dd": "Nirim",
+    "\u05d1\u05d0\u05e8\u05d9": "Be'eri",
+    "\u05db\u05d9\u05e1\u05d5\u05e4\u05d9\u05dd": "Kissufim",
+    "\u05e6\u05d0\u05dc\u05d9\u05dd": "Tzaelim",
+    "\u05e0\u05d9\u05e8 \u05d9\u05e6\u05d7\u05e7": "Nir Yitzhak",
+    "\u05d2\u05d1\u05d5\u05dc\u05d5\u05ea": "Gevulot",
+    "\u05d0\u05dc\u05d5\u05de\u05d9\u05dd": "Alumim",
+    "\u05e8\u05e2\u05d9\u05dd": "Re'im",
+    "\u05e2\u05d9\u05df \u05d4\u05d1\u05e9\u05d5\u05e8": "Ein HaBsor",
+    "\u05ea\u05e7\u05d5\u05de\u05d4": "Tkuma",
+    "\u05e4\u05d8\u05d9\u05e9": "Patish",
+    "\u05e0\u05d9\u05e8 \u05e2\u05d5\u05d6": "Nir Oz",
+    "\u05d7\u05d5\u05dc\u05d9\u05ea": "Hulit",
+    "\u05e1\u05e2\u05d3": "Sa'ad",
+    "\u05d9\u05d3 \u05de\u05e8\u05d3\u05db\u05d9": "Yad Mordechai",
+    "\u05e0\u05d9\u05e6\u05df": "Nitzan",
+    "\u05d6\u05d9\u05e7\u05d9\u05dd": "Zikim",
+    "\u05d0\u05e8\u05d6": "Erez",
+    "\u05de\u05e4\u05dc\u05e1\u05d9\u05dd": "Mefalsim",
+    "\u05db\u05e8\u05dd \u05e9\u05dc\u05d5\u05dd": "Kerem Shalom",
+    "\u05e2\u05d9\u05df \u05d4\u05e9\u05dc\u05d5\u05e9\u05d4": "Ein HaShlosha",
+    "\u05e9\u05d5\u05e7\u05d3\u05d4": "Shokeda",
+    "\u05db\u05e4\u05e8 \u05de\u05d9\u05d9\u05de\u05d5\u05df": "Kfar Maimon",
+    "\u05d2\u05d9\u05dc\u05ea": "Gilat",
+    "\u05d1\u05e8\u05d5\u05e8 \u05d7\u05d9\u05dc": "Brur Hail",
+    "\u05d9\u05e9\u05e2": "Yesha",
+    "\u05e9\u05e4\u05d9\u05e8": "Shafir",
+    "\u05e9\u05d3\u05d4 \u05d3\u05d5\u05d3": "Sde David",
+    # Lachish / Shfela
+    "\u05dc\u05db\u05d9\u05e9": "Lachish",
+    "\u05d2\u05df \u05d9\u05d1\u05e0\u05d4": "Gan Yavne",
+    "\u05d9\u05d1\u05e0\u05d4": "Yavne",
+    "\u05d2\u05d3\u05e8\u05d4": "Gedera",
+    "\u05de\u05d6\u05db\u05e8\u05ea \u05d1\u05ea\u05d9\u05d4": "Mazkeret Batya",
+    "\u05e8\u05d7\u05d5\u05d1\u05d5\u05ea": "Rehovot",
+    "\u05e0\u05e1 \u05e6\u05d9\u05d5\u05e0\u05d4": "Nes Ziona",
+    "\u05e7\u05e8\u05d9\u05d9\u05ea \u05d2\u05ea": "Kiryat Gat",
+    "\u05e7\u05e8\u05d9\u05d9\u05ea \u05de\u05dc\u05d0\u05db\u05d9": "Kiryat Malachi",
+    "\u05d2\u05d1\u05e2\u05ea \u05d1\u05e8\u05e0\u05e8": "Givat Brenner",
+    # Judea / Hebron Hills
+    "\u05d1\u05d9\u05ea \u05d7\u05d2\u05d9": "Beit Hagai",
+    "\u05e7\u05e8\u05d9\u05ea \u05d0\u05e8\u05d1\u05e2": "Kiryat Arba",
+    "\u05d7\u05d1\u05e8\u05d5\u05df": "Hebron",
+    "\u05d1\u05d9\u05ea \u05e9\u05de\u05e9": "Beit Shemesh",
+    "\u05de\u05e2\u05d5\u05df": "Ma'on",
+    "\u05db\u05e8\u05de\u05dc": "Carmel",
+    "\u05e9\u05d5\u05db\u05d4": "Shuka",
+    "\u05d1\u05d9\u05ea \u05d9\u05ea\u05d9\u05e8": "Beit Yatir",
+    "\u05d0\u05d1\u05d9\u05d2\u05d9\u05dc": "Avigail",
+    # Jerusalem area
+    "\u05d9\u05e8\u05d5\u05e9\u05dc\u05d9\u05dd": "Jerusalem",
+    "\u05de\u05e2\u05dc\u05d4 \u05d0\u05d3\u05d5\u05de\u05d9\u05dd": "Ma'ale Adumim",
+    "\u05d2\u05d5\u05e9 \u05e2\u05e6\u05d9\u05d5\u05df": "Gush Etzion",
+    "\u05d0\u05e4\u05e8\u05ea": "Efrat",
+    "\u05ea\u05e7\u05d5\u05e2": "Tekoa",
+    "\u05d1\u05d9\u05ea\u05e8 \u05e2\u05d9\u05dc\u05d9\u05ea": "Beitar Illit",
+    "\u05de\u05d5\u05d3\u05d9\u05e2\u05d9\u05df \u05e2\u05d9\u05dc\u05d9\u05ea": "Modi'in Illit",
+    # Negev
+    "\u05d1\u05d0\u05e8 \u05e9\u05d1\u05e2": "Beer Sheva",
+    "\u05d3\u05d9\u05de\u05d5\u05e0\u05d4": "Dimona",
+    "\u05e2\u05e8\u05d3": "Arad",
+    "\u05d9\u05e8\u05d5\u05d7\u05dd": "Yeruham",
+    "\u05de\u05e6\u05e4\u05d4 \u05e8\u05de\u05d5\u05df": "Mitzpe Ramon",
+    "\u05d0\u05d9\u05dc\u05ea": "Eilat",
+    "\u05dc\u05d4\u05d1\u05d9\u05dd": "Lehavim",
+    "\u05de\u05d9\u05ea\u05e8": "Meitar",
+    "\u05e2\u05d5\u05de\u05e8": "Omer",
+    "\u05e8\u05d4\u05d8": "Rahat",
+    "\u05ea\u05dc \u05e9\u05d1\u05e2": "Tel Sheva",
+    "\u05dc\u05e7\u05d9\u05d4": "Lakiya",
+    "\u05db\u05e1\u05d9\u05d9\u05e4\u05d4": "Kuseifa",
+    "\u05e9\u05d2\u05d1 \u05e9\u05dc\u05d5\u05dd": "Segev Shalom",
+    "\u05dc\u05d4\u05d1": "Lahav",
+    "\u05e9\u05d5\u05d1\u05dc": "Shuval",
+    "\u05e8\u05d1\u05d9\u05d1\u05d9\u05dd": "Revivim",
+    # Center / Tel Aviv area
+    "\u05ea\u05dc \u05d0\u05d1\u05d9\u05d1": "Tel Aviv",
+    "\u05e8\u05d0\u05e9\u05d5\u05df \u05dc\u05e6\u05d9\u05d5\u05df": "Rishon LeZion",
+    "\u05e4\u05ea\u05d7 \u05ea\u05e7\u05d5\u05d5\u05d4": "Petah Tikva",
+    "\u05e8\u05de\u05ea \u05d2\u05df": "Ramat Gan",
+    "\u05d2\u05d1\u05e2\u05ea\u05d9\u05d9\u05dd": "Givatayim",
+    "\u05d7\u05d5\u05dc\u05d5\u05df": "Holon",
+    "\u05d1\u05ea \u05d9\u05dd": "Bat Yam",
+    "\u05dc\u05d5\u05d3": "Lod",
+    "\u05e8\u05de\u05dc\u05d4": "Ramla",
+    "\u05de\u05d5\u05d3\u05d9\u05e2\u05d9\u05df": "Modi'in",
+    "\u05e8\u05d0\u05e9 \u05d4\u05e2\u05d9\u05df": "Rosh HaAyin",
+    "\u05d0\u05dc\u05e2\u05d3": "Elad",
+    "\u05e9\u05d5\u05d4\u05dd": "Shoham",
+    # Sharon
+    "\u05d4\u05e8\u05e6\u05dc\u05d9\u05d4": "Herzliya",
+    "\u05e0\u05ea\u05e0\u05d9\u05d4": "Netanya",
+    "\u05d7\u05d3\u05e8\u05d4": "Hadera",
+    "\u05db\u05e4\u05e8 \u05e1\u05d1\u05d0": "Kfar Saba",
+    "\u05e8\u05e2\u05e0\u05e0\u05d4": "Ra'anana",
+    "\u05d4\u05d5\u05d3 \u05d4\u05e9\u05e8\u05d5\u05df": "Hod HaSharon",
+    "\u05db\u05e4\u05e8 \u05d9\u05d5\u05e0\u05d4": "Kfar Yona",
+    "\u05ea\u05dc \u05de\u05d5\u05e0\u05d3": "Tel Mond",
+    "\u05e7\u05d3\u05d9\u05de\u05d4": "Kadima",
+    # North / Galilee
+    "\u05d7\u05d9\u05e4\u05d4": "Haifa",
+    "\u05e2\u05db\u05d5": "Akko",
+    "\u05e0\u05d4\u05e8\u05d9\u05d4": "Nahariya",
+    "\u05e9\u05dc\u05d5\u05de\u05d9": "Shlomi",
+    "\u05e7\u05e8\u05d9\u05d9\u05ea \u05e9\u05de\u05d5\u05e0\u05d4": "Kiryat Shmona",
+    "\u05de\u05d8\u05d5\u05dc\u05d4": "Metula",
+    "\u05e8\u05d0\u05e9 \u05e4\u05d9\u05e0\u05d4": "Rosh Pinna",
+    "\u05e6\u05e4\u05ea": "Safed",
+    "\u05d8\u05d1\u05e8\u05d9\u05d4": "Tiberias",
+    "\u05e0\u05e6\u05e8\u05ea": "Nazareth",
+    "\u05e2\u05e4\u05d5\u05dc\u05d4": "Afula",
+    "\u05d9\u05d5\u05e7\u05e0\u05e2\u05dd": "Yokneam",
+    "\u05e7\u05e8\u05d9\u05d9\u05ea \u05d9\u05dd": "Kiryat Yam",
+    "\u05e7\u05e8\u05d9\u05d9\u05ea \u05d1\u05d9\u05d0\u05dc\u05d9\u05e7": "Kiryat Bialik",
+    "\u05e7\u05e8\u05d9\u05d9\u05ea \u05de\u05d5\u05e6\u05e7\u05d9\u05df": "Kiryat Motzkin",
+    "\u05e7\u05e8\u05d9\u05d9\u05ea \u05d0\u05ea\u05d0": "Kiryat Ata",
+    "\u05d8\u05d9\u05e8\u05ea \u05db\u05e8\u05de\u05dc": "Tirat Carmel",
+    "\u05d6\u05d9\u05db\u05e8\u05d5\u05df \u05d9\u05e2\u05e7\u05d1": "Zichron Ya'akov",
+    "\u05d1\u05e0\u05d9\u05de\u05d9\u05e0\u05d4": "Binyamina",
+    "\u05e4\u05e8\u05d3\u05e1 \u05d7\u05e0\u05d4": "Pardes Hanna",
+    "\u05de\u05d2\u05d3\u05dc \u05d4\u05e2\u05de\u05e7": "Migdal HaEmek",
+    "\u05e0\u05e9\u05e8": "Nesher",
+    "\u05db\u05e8\u05de\u05d9\u05d0\u05dc": "Karmiel",
+    # Golan Heights
+    "\u05e7\u05e6\u05e8\u05d9\u05df": "Katzrin",
+    "\u05de\u05d2\u05d3\u05dc \u05e9\u05de\u05e1": "Majdal Shams",
+    "\u05de\u05e1\u05e2\u05d3\u05d4": "Mas'ada",
+    "\u05d1\u05d5\u05e7\u05e2\u05d0\u05ea\u05d0": "Buq'ata",
+    "\u05de\u05e8\u05d5\u05dd \u05d2\u05d5\u05dc\u05df": "Merom Golan",
+}
+
+# Fallback: character-level Hebrew → Latin transliteration
+_HE_TO_LATIN = {
+    "\u05d0": "", "\u05d1": "b", "\u05d2": "g", "\u05d3": "d", "\u05d4": "h",
+    "\u05d5": "v", "\u05d6": "z", "\u05d7": "ch", "\u05d8": "t", "\u05d9": "y",
+    "\u05db": "k", "\u05da": "kh", "\u05dc": "l", "\u05de": "m", "\u05dd": "m",
+    "\u05e0": "n", "\u05df": "n", "\u05e1": "s", "\u05e2": "", "\u05e4": "p",
+    "\u05e3": "f", "\u05e6": "tz", "\u05e5": "tz", "\u05e7": "k", "\u05e8": "r",
+    "\u05e9": "sh", "\u05ea": "t",
+}
+
+
+def transliterate_he(s: str) -> str:
+    """Transliterate Hebrew characters to Latin letters (best-effort fallback)."""
+    parts = [_HE_TO_LATIN.get(ch, ch) for ch in s]
+    out = re.sub(r"\s+", " ", "".join(parts)).strip()
+    return " ".join(w.capitalize() for w in out.split()) if out else s
+
+
+def settlement_display(key: str) -> str:
+    """Return an English-readable display name for a normalized settlement key."""
+    en = SETTLEMENT_EN.get(key)
+    return en if en else transliterate_he(key)
+
 
 def normalize_text(s: str) -> str:
     """Normalize a single settlement name: replace Hebrew quote chars, collapse spaces."""
@@ -290,7 +458,8 @@ def pct(x):
     return f"{x * 100:.1f}%"
 
 
-def pick_top_operational(rows, k=3):
+def pick_top_operational(rows):
+    """Score and rank all rows by operational usefulness; return all with valid lead time."""
     scored = []
     for r in rows:
         if math.isnan(r["avg_lead_sec"]):
@@ -304,7 +473,7 @@ def pick_top_operational(rows, k=3):
         rr["operational_score"] = score
         scored.append(rr)
     scored.sort(key=lambda x: x["operational_score"], reverse=True)
-    return scored[:k]
+    return scored
 
 
 def auto_pick_target(events_by_settlement):
@@ -490,7 +659,9 @@ def main():
 
     rows, target_count = compute_predictor_stats(events_by_settlement, target_key, args.min_volume)
     top_n_rows = rows[: args.top_n]
-    recs = pick_top_operational(top_n_rows, args.top_k)
+    all_recs = pick_top_operational(top_n_rows)
+    recs = all_recs[: args.top_k]       # Table 2 — primary recommendations
+    extra_recs = all_recs[args.top_k:]  # Table 2+ — additional triggers
 
     # Build the full output as a list of lines so we can write to file or console
     lines = []
@@ -506,14 +677,15 @@ def main():
     # Table 1 — Top N by precision
     lines.append(f"--- Table 1: Top {args.top_n} Predictors by Precision ---")
     lines.append(
-        f"{'#':<3}  {'Settlement':<35}  {'Total':>5}  "
+        f"{'#':<3}  {'Settlement':<30}  {'Total':>5}  "
         f"{'Precision':>9}  {'Avg Lead':>8}  {'Med Lead':>8}  "
         f"{'P(sett|tgt)':>11}  {'Hits/Total':>10}"
     )
-    lines.append("-" * 100)
+    lines.append("-" * 95)
     for i, r in enumerate(top_n_rows, 1):
+        name_en = settlement_display(r["settlement"])
         lines.append(
-            f"{i:<3}  {r['settlement']:<35}  {r['total_events']:>5}  "
+            f"{i:<3}  {name_en:<30}  {r['total_events']:>5}  "
             f"{pct(r['precision']):>9}  {format_lead(r['avg_lead_sec']):>8}  "
             f"{format_lead(r['med_lead_sec']):>8}  {pct(r['p_settlement_given_target']):>11}  "
             f"{r['success_count']}/{r['total_events']}"
@@ -526,13 +698,32 @@ def main():
         lines.append("No recommendations (insufficient lead-time data).")
     else:
         for i, r in enumerate(recs, 1):
+            name_en = settlement_display(r["settlement"])
             lines.append(
-                f"{i}) {r['settlement']}  |  "
+                f"{i}) {name_en}  |  "
                 f"precision={pct(r['precision'])}  |  "
                 f"avg_lead={format_lead(r['avg_lead_sec'])}  |  "
                 f"total={r['total_events']}  |  "
                 f"score={r['operational_score']:.3f}"
             )
+
+    lines.append("")
+    # Table 2+ — Additional operational triggers beyond top K
+    if extra_recs:
+        lines.append(
+            f"--- Table 2+: Additional Triggers (ranks {args.top_k + 1}–{len(all_recs)}) ---"
+        )
+        for i, r in enumerate(extra_recs, args.top_k + 1):
+            name_en = settlement_display(r["settlement"])
+            lines.append(
+                f"{i}) {name_en}  |  "
+                f"precision={pct(r['precision'])}  |  "
+                f"avg_lead={format_lead(r['avg_lead_sec'])}  |  "
+                f"total={r['total_events']}  |  "
+                f"score={r['operational_score']:.3f}"
+            )
+    else:
+        lines.append("--- Table 2+: No additional triggers beyond Table 2 ---")
 
     output_text = "\n".join(lines) + "\n"
 
