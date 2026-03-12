@@ -10,6 +10,24 @@ Hebrew rocket-alert messages and produces two tables:
 
 ---
 
+## ⚠️ Make Sure You Have the Latest Version
+
+> If you see `unrecognized arguments: --html` or `unrecognized arguments: --output` or
+> `unrecognized arguments: --hebrew`, **you are running an old copy of the script**.
+> Download the latest `analyze_predictors_en_safe.py` from this repository and replace
+> your local copy before running any commands.
+
+**To check which version you have:**
+
+```powershell
+py analyze_predictors_en_safe.py --version
+# Should print: analyze_predictors_en_safe.py v2.2
+```
+
+If the `--version` flag itself is not recognized, your copy is older than v2.0 — download the latest file from the repository.
+
+---
+
 ## Requirements
 
 - Python 3.8 or newer (no extra packages needed — standard library only)
@@ -88,6 +106,8 @@ The tool expects a standard Telegram channel export file:
 
 | Error message | Cause | Fix |
 |---|---|---|
+| `unrecognized arguments: --html` | You are running an old copy of the script | Download the latest `analyze_predictors_en_safe.py` from this repository and replace your local copy |
+| `unrecognized arguments: --output` | Same as above — old version | Download the latest version (v2.2+) |
 | `ERROR: Input file not found` | The JSON file path is wrong | Check spelling and directory |
 | `ERROR: No rocket-alert settlement events found` | Date range too narrow, or messages don't match the expected format | Widen `--start-date` |
 | `ERROR: Could not auto-detect a target` | No settlement containing the target keywords was found | Run with `--list-targets` to see options, then use `--target <name>` |

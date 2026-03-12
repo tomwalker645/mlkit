@@ -1026,6 +1026,12 @@ def main():
             "Use --output FILE.html to specify the output path (default: output.html)."
         ),
     )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s v{VERSION}",
+        help="Show the script version and exit.",
+    )
     args = parser.parse_args()
 
     # Robust missing-file handling
