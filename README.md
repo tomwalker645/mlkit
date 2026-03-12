@@ -14,7 +14,7 @@ Note: due to how this repo works, we no longer accept pull requests directly. In
 
 ## 🚀 הגדרת העלאה אוטומטית לאתר (Firebase CI/CD)
 
-כדי שכל שינוי שנדחף ל-`main` יופיע אוטומטית באתר, יש לבצע **פעם אחת** את ההגדרה הבאה.
+כדי שכל שינוי שנדחף ל-`master` יופיע אוטומטית באתר, יש לבצע **פעם אחת** את ההגדרה הבאה.
 
 ---
 
@@ -77,7 +77,7 @@ Note: due to how this repo works, we no longer accept pull requests directly. In
 
 לאחר שסיימתם את שלבים 1–3, בצעו בדיקה פשוטה כדי לוודא שההגדרה הצליחה:
 
-1. **דחפו שינוי קטן לענף `main`** — לדוגמה, ערכו שורה בקובץ כלשהו, שמרו, ו-commit + push לענף `main`.
+1. **דחפו שינוי קטן לענף `master`** — לדוגמה, ערכו שורה בקובץ כלשהו, שמרו, ו-commit + push לענף `master`.
 
 2. **עברו ל-GitHub Actions:**  
    היכנסו לדף:  
@@ -91,15 +91,17 @@ Note: due to how this repo works, we no longer accept pull requests directly. In
 > 💡 **אם אתם רואים ❌ אדום ב-Actions** — לחצו על הריצה הכושלת כדי לראות את הלוג ולהבין מה קרה.  
 > הסיבה הנפוצה ביותר: ה-secret לא הוגדר נכון — חזרו לשלב 3 ובדקו שהשם הוא בדיוק `FIREBASE_SERVICE_ACCOUNT`.
 
+> ⚠️ **חשוב:** ה-workflow מופעל רק על ענף `master` — **לא** `main`. וודאו שאתם דוחפים לענף הנכון.
+
 ---
 
 ### איך זה עובד אחרי ההגדרה?
 
 ```
-דחיפת קוד ל-main  →  GitHub Actions מופעל  →  Firebase Hosting מתעדכן  →  האתר מתעדכן תוך ~1 דקה
+דחיפת קוד ל-master  →  GitHub Actions מופעל  →  Firebase Hosting מתעדכן  →  האתר מתעדכן תוך ~1 דקה
 ```
 
-בכל פעם שתמזגו שינויים לענף `main`, האתר בכתובת  
+בכל פעם שתמזגו שינויים לענף `master`, האתר בכתובת  
 https://attendance-ploga.web.app  
 יתעדכן אוטומטית תוך כ-60 שניות.
 
