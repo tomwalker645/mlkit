@@ -55,6 +55,9 @@ DEFAULT_TOP_K = 3
 MIN_LEAD_SEC = 15
 MAX_LEAD_SEC = 600
 
+# Width of the Table 1 header row: must match the format string in main()
+TABLE1_WIDTH = 98
+
 NON_ALERT_PATTERNS = [
     r"\u05de\u05d1\u05d6\u05e7",
     r"\u05d4\u05d9\u05e9\u05de\u05e2\u05d5 \u05dc\u05d4\u05e0\u05d7\u05d9\u05d5\u05ea",
@@ -132,6 +135,7 @@ SETTLEMENT_EN = {
     # Judea / Hebron Hills
     "\u05d1\u05d9\u05ea \u05d7\u05d2\u05d9": "Beit Hagai",
     "\u05e7\u05e8\u05d9\u05ea \u05d0\u05e8\u05d1\u05e2": "Kiryat Arba",
+    "\u05e7\u05e8\u05d9\u05d9\u05ea \u05d0\u05e8\u05d1\u05e2": "Kiryat Arba",
     "\u05d7\u05d1\u05e8\u05d5\u05df": "Hebron",
     "\u05d1\u05d9\u05ea \u05e9\u05de\u05e9": "Beit Shemesh",
     "\u05de\u05e2\u05d5\u05df": "Ma'on",
@@ -667,7 +671,8 @@ def main():
     lines = []
     lines.append("")
     lines.append(f"=== Predictor Analysis (v{VERSION}) ===")
-    lines.append(f"Target         : {target_key}")
+    target_en = settlement_display(target_key)
+    lines.append(f"Target         : {target_key} ({target_en})")
     lines.append(f"Target events  : {target_count}")
     lines.append(f"Date range     : {start_dt} .. {end_dt}")
     lines.append(f"Min volume     : {args.min_volume}")
@@ -681,7 +686,7 @@ def main():
         f"{'Precision':>9}  {'Avg Lead':>8}  {'Med Lead':>8}  "
         f"{'P(sett|tgt)':>11}  {'Hits/Total':>10}"
     )
-    lines.append("-" * 95)
+    lines.append("-" * TABLE1_WIDTH)
     for i, r in enumerate(top_n_rows, 1):
         name_en = settlement_display(r["settlement"])
         lines.append(
