@@ -45,13 +45,15 @@ py analyze_predictors_en_safe.py --input result_filtered.json --list-targets
 |---|---|---|
 | `--input` | *(required)* | Path to the Telegram export JSON file |
 | `--target` | `AUTO_BEIT_HAG` | Target settlement. `AUTO_BEIT_HAG` auto-detects the Beit Hag settlement |
-| `--start-date` | *(30 days ago)* | Start date `YYYY-MM-DD` |
+| `--start-date` | `2026-02-28` | Start date `YYYY-MM-DD` (default = start of current escalation) |
 | `--end-date` | *(now)* | End date `YYYY-MM-DD` |
 | `--min-volume` | `20` | Minimum alert count for a settlement to be considered |
 | `--top-n` | `10` | Number of rows in Table 1 (precision table) |
 | `--top-k` | `3` | Number of rows in Table 2 (operational triggers) |
 | `--output FILE` | *(console)* | Write results to FILE in UTF-8 (recommended on Windows) |
 | `--list-targets` | — | List all qualifying settlements and exit |
+| `--force-check NAMES` | *(geo-priority)* | Comma-separated Hebrew names always included, even below `--min-volume`. Rows marked `*`. When target is `AUTO_BEIT_HAG`, the six geographic-priority settlements (להב, להבים, תנא עומרים, מעון, סנסנה, שמעה) are added automatically |
+| `--hebrew` | — | Display settlement names in Hebrew instead of English |
 
 ---
 

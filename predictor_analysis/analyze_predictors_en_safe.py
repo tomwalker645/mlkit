@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Predictor Analysis Tool  (v2.0)
+Predictor Analysis Tool  (v2.1)
 ================================
 Reads a Telegram channel export (result_filtered.json) containing Hebrew
 rocket-alert messages, and finds which settlements are the best predictors
@@ -21,10 +21,27 @@ Usage
         --target AUTO_BEIT_HAG --top-n 15 --top-k 5 \
         --start-date 2026-01-01 --output output.txt
 
+    # Force-check specific settlements even if below min-volume:
+    py analyze_predictors_en_safe.py --input result_filtered.json \
+        --target AUTO_BEIT_HAG --force-check "להב,להבים,מעון"
+
+    # Output Hebrew settlement names instead of English:
+    py analyze_predictors_en_safe.py --input result_filtered.json \
+        --target AUTO_BEIT_HAG --hebrew --output output.txt
+
 Output
 ------
   - Table 1: Top N settlements by precision (P(target|settlement fires first))
   - Table 2: Top K operational triggers (weighted score of precision + lead-time + volume)
+  - Table 2+: Additional operational triggers beyond top K
+
+New in v2.1
+-----------
+  --force-check     Comma-separated Hebrew settlement names always included in analysis
+                    regardless of --min-volume (useful for geographic priority settlements
+                    on the firing axis: להב, להבים, תנא עומרים, מעון, סנסנה, שמעה)
+  --hebrew          Display settlement names in Hebrew instead of English
+  Default start date fixed to 2026-02-28 (start of current escalation)
 
 New in v2.0
 -----------
@@ -32,7 +49,6 @@ New in v2.0
   --list-targets    List all settlements with enough volume so you can pick --target
   --top-n N         Number of rows in Table 1 (default 10)
   --top-k K         Number of rows in Table 2 (default 3)
-  Dynamic default start date: 30 days before today instead of a hard-coded date
 """
 
 import json
@@ -46,7 +62,7 @@ from datetime import datetime, timedelta
 from bisect import bisect_left
 from statistics import median
 
-VERSION = "2.0"
+VERSION = "2.1"
 
 DEFAULT_TARGET = "AUTO_BEIT_HAG"
 DEFAULT_MIN_VOLUME = 20
@@ -54,6 +70,20 @@ DEFAULT_TOP_N = 10
 DEFAULT_TOP_K = 3
 MIN_LEAD_SEC = 15
 MAX_LEAD_SEC = 600
+
+# Default start date: 28 Feb 2026 (start of current escalation)
+DEFAULT_START_DATE = "2026-02-28"
+
+# Geographic priority settlements on the firing axis from south/west towards
+# Mt. Hebron — always force-checked when target is Beit Hagai.
+GEO_PRIORITY_NAMES = [
+    "\u05dc\u05d4\u05d1",           # להב   (Lahav)
+    "\u05dc\u05d4\u05d1\u05d9\u05dd",  # להבים (Lehavim)
+    "\u05ea\u05e0\u05d0 \u05e2\u05d5\u05de\u05e8\u05d9\u05dd",  # תנא עומרים (Tene Omarim)
+    "\u05de\u05e2\u05d5\u05df",      # מעון  (Ma'on)
+    "\u05e1\u05e0\u05e1\u05e0\u05d4",  # סנסנה (Sansana)
+    "\u05e9\u05de\u05e2\u05d4",      # שמעה  (Shema)
+]
 
 # Width of the Table 1 header row: must match the format string in main()
 TABLE1_WIDTH = 98
@@ -145,6 +175,9 @@ SETTLEMENT_EN = {
     "\u05e9\u05d5\u05db\u05d4": "Shuka",
     "\u05d1\u05d9\u05ea \u05d9\u05ea\u05d9\u05e8": "Beit Yatir",
     "\u05d0\u05d1\u05d9\u05d2\u05d9\u05dc": "Avigail",
+    "\u05ea\u05e0\u05d0 \u05e2\u05d5\u05de\u05e8\u05d9\u05dd": "Tene Omarim",
+    "\u05e1\u05e0\u05e1\u05e0\u05d4": "Sansana",
+    "\u05e9\u05de\u05e2\u05d4": "Shema",
     # Jerusalem area
     "\u05d9\u05e8\u05d5\u05e9\u05dc\u05d9\u05dd": "Jerusalem",
     "\u05de\u05e2\u05dc\u05d4 \u05d0\u05d3\u05d5\u05de\u05d9\u05dd": "Ma'ale Adumim",
@@ -403,10 +436,11 @@ def build_events(messages, start_dt, end_dt):
     return events_by_settlement
 
 
-def compute_predictor_stats(events_by_settlement, target_key, min_volume):
+def compute_predictor_stats(events_by_settlement, target_key, min_volume, force_set=None):
     if target_key not in events_by_settlement:
         raise ValueError(f'Target not found: "{target_key}"')
 
+    force_set = force_set or set()
     target_times = sorted(events_by_settlement[target_key])
     target_count = len(target_times)
     results = []
@@ -415,7 +449,7 @@ def compute_predictor_stats(events_by_settlement, target_key, min_volume):
         if settlement == target_key:
             continue
         total = len(times)
-        if total < min_volume:
+        if total < min_volume and settlement not in force_set:
             continue
 
         lead_seconds_list = []
@@ -451,6 +485,7 @@ def compute_predictor_stats(events_by_settlement, target_key, min_volume):
             "avg_lead_sec": avg_lead,
             "med_lead_sec": med_lead,
             "p_settlement_given_target": p_settlement_given_target,
+            "force_checked": settlement in force_set,
         })
 
     results.sort(key=lambda x: (x["precision"], x["total_events"]), reverse=True)
@@ -513,9 +548,6 @@ def main():
     if hasattr(sys.stderr, "reconfigure"):
         sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-    # Dynamic default start date: 30 days before today
-    default_start_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
-
     parser = argparse.ArgumentParser(
         description=f"Predictor Analysis Tool v{VERSION} — Find settlement predictors in rocket-alert data.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -525,7 +557,13 @@ def main():
             "  py analyze_predictors_en_safe.py --input result_filtered.json "
             "--target AUTO_BEIT_HAG --min-volume 20 --output output.txt\n\n"
             "  # List all available settlements (to pick a --target):\n"
-            "  py analyze_predictors_en_safe.py --input result_filtered.json --list-targets\n"
+            "  py analyze_predictors_en_safe.py --input result_filtered.json --list-targets\n\n"
+            "  # Force-check geographic priority settlements:\n"
+            "  py analyze_predictors_en_safe.py --input result_filtered.json "
+            "--target AUTO_BEIT_HAG --force-check \"להב,להבים,מעון\"\n\n"
+            "  # Hebrew output:\n"
+            "  py analyze_predictors_en_safe.py --input result_filtered.json "
+            "--target AUTO_BEIT_HAG --hebrew --output output.txt\n"
         ),
     )
     parser.add_argument(
@@ -540,8 +578,8 @@ def main():
     )
     parser.add_argument(
         "--start-date",
-        default=default_start_date,
-        help=f"Start date in YYYY-MM-DD format (default: 30 days ago = {default_start_date})",
+        default=DEFAULT_START_DATE,
+        help=f"Start date in YYYY-MM-DD format (default: {DEFAULT_START_DATE})",
     )
     parser.add_argument(
         "--end-date",
@@ -582,6 +620,22 @@ def main():
             "List all settlements that meet --min-volume and exit. "
             "Use this to find a valid value for --target."
         ),
+    )
+    parser.add_argument(
+        "--force-check",
+        default=None,
+        metavar="NAMES",
+        help=(
+            "Comma-separated Hebrew settlement names to always include in analysis "
+            "regardless of --min-volume (e.g. \"להב,להבים,מעון,סנסנה,שמעה\"). "
+            "When target is AUTO_BEIT_HAG the geographic priority settlements "
+            "(להב, להבים, תנא עומרים, מעון, סנסנה, שמעה) are added automatically."
+        ),
+    )
+    parser.add_argument(
+        "--hebrew",
+        action="store_true",
+        help="Display settlement names in Hebrew instead of English.",
     )
     args = parser.parse_args()
 
@@ -668,7 +722,29 @@ def main():
                 print_safe(f"  - {k}")
         sys.exit(1)
 
-    rows, target_count = compute_predictor_stats(events_by_settlement, target_key, args.min_volume)
+    # Build force_set: start with geographic priority when target is Beit Hagai
+    force_set = set()
+    if args.target == "AUTO_BEIT_HAG":
+        force_set = {norm_key(n) for n in GEO_PRIORITY_NAMES}
+    # Add any extra names from --force-check
+    if args.force_check:
+        for name in args.force_check.split(","):
+            name = name.strip()
+            if name:
+                force_set.add(norm_key(name))
+
+    # Report which force-check settlements are not yet in the data at all
+    missing_force = sorted(force_set - set(events_by_settlement.keys()))
+    if missing_force:
+        missing_display = ", ".join(missing_force)
+        print_safe(
+            f"Note: {len(missing_force)} force-check settlement(s) have no events in "
+            f"this date range and will be omitted: {missing_display}"
+        )
+
+    rows, target_count = compute_predictor_stats(
+        events_by_settlement, target_key, args.min_volume, force_set=force_set
+    )
     top_n_rows = rows[: args.top_n]
     all_recs = pick_top_operational(top_n_rows)
     recs = all_recs[: args.top_k]       # Table 2 — primary recommendations
@@ -679,12 +755,21 @@ def main():
     lines.append("")
     lines.append(f"=== Predictor Analysis (v{VERSION}) ===")
     target_en = settlement_display(target_key)
-    lines.append(f"Target         : {target_key} ({target_en})")
+    if args.hebrew:
+        lines.append(f"Target         : {target_key}")
+    else:
+        lines.append(f"Target         : {target_key} ({target_en})")
     lines.append(f"Target events  : {target_count}")
     lines.append(f"Date range     : {start_dt} .. {end_dt}")
     lines.append(f"Min volume     : {args.min_volume}")
     lines.append(f"Window         : {MIN_LEAD_SEC}s .. {MAX_LEAD_SEC}s")
+    if force_set:
+        lines.append(f"Force-check    : {', '.join(sorted(force_set))}  (* = low-volume)")
     lines.append("")
+
+    def display_name(key):
+        """Return settlement display name according to --hebrew flag."""
+        return key if args.hebrew else settlement_display(key)
 
     # Table 1 — Top N by precision
     lines.append(f"--- Table 1: Top {args.top_n} Predictors by Precision ---")
@@ -695,9 +780,10 @@ def main():
     )
     lines.append("-" * TABLE1_WIDTH)
     for i, r in enumerate(top_n_rows, 1):
-        name_en = settlement_display(r["settlement"])
+        name = display_name(r["settlement"])
+        marker = "*" if r.get("force_checked") else " "
         lines.append(
-            f"{i:<3}  {name_en:<30}  {r['total_events']:>5}  "
+            f"{i:<3}  {name + marker:<30}  {r['total_events']:>5}  "
             f"{pct(r['precision']):>9}  {format_lead(r['avg_lead_sec']):>8}  "
             f"{format_lead(r['med_lead_sec']):>8}  {pct(r['p_settlement_given_target']):>11}  "
             f"{r['success_count']}/{r['total_events']}"
@@ -710,9 +796,10 @@ def main():
         lines.append("No recommendations (insufficient lead-time data).")
     else:
         for i, r in enumerate(recs, 1):
-            name_en = settlement_display(r["settlement"])
+            name = display_name(r["settlement"])
+            marker = "*" if r.get("force_checked") else ""
             lines.append(
-                f"{i}) {name_en}  |  "
+                f"{i}) {name}{marker}  |  "
                 f"precision={pct(r['precision'])}  |  "
                 f"avg_lead={format_lead(r['avg_lead_sec'])}  |  "
                 f"total={r['total_events']}  |  "
@@ -726,9 +813,10 @@ def main():
             f"--- Table 2+: Additional Triggers (ranks {args.top_k + 1}–{len(all_recs)}) ---"
         )
         for i, r in enumerate(extra_recs, args.top_k + 1):
-            name_en = settlement_display(r["settlement"])
+            name = display_name(r["settlement"])
+            marker = "*" if r.get("force_checked") else ""
             lines.append(
-                f"{i}) {name_en}  |  "
+                f"{i}) {name}{marker}  |  "
                 f"precision={pct(r['precision'])}  |  "
                 f"avg_lead={format_lead(r['avg_lead_sec'])}  |  "
                 f"total={r['total_events']}  |  "
