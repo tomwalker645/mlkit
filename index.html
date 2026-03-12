@@ -142,6 +142,19 @@
       .col-8, .col-6, .col-4 { grid-column: span 12; }
       .title-row h1 { font-size: 1rem; }
     }
+
+    .att-team { margin-top: 12px; border: 1px solid #dbe5ef; border-radius: 10px; padding: 8px; }
+    .att-team-head { display: flex; justify-content: space-between; align-items: center; padding: 4px 4px 8px; border-bottom: 1px solid #edf2f7; margin-bottom: 4px; font-weight: 700; font-size: 0.95rem; }
+    .att-person { display: flex; justify-content: space-between; align-items: center; gap: 8px; border-radius: 9px; border-right: 6px solid #c8d2dc; background: #fff; padding: 9px; margin-top: 6px; }
+    .att-person.present { border-right-color: var(--ok); background: #eef9f2; }
+    .att-person.missing { border-right-color: var(--bad); background: #fff2f3; }
+    .att-person.extra { border-right-color: var(--warn); background: #fff8df; }
+    .att-person-name { font-weight: 600; }
+    .att-actions { display: flex; gap: 4px; }
+    .att-actions button { width: auto; min-width: 38px; padding: 8px; }
+    .att-history-item { background: #f8fafc; border: 1px solid #dce6f1; border-radius: 10px; padding: 9px; margin-top: 8px; font-size: 0.92rem; }
+    .att-history-details { margin-top: 6px; font-size: 0.85rem; color: #334a62; line-height: 1.5; display: none; }
+    .att-queue-item { background: #f8fafc; border: 1px solid #dce6f1; border-radius: 10px; padding: 9px; margin-top: 8px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   </style>
 </head>
 <body>
@@ -352,9 +365,30 @@
           <div class="muted">מוריד קובץ CSV עם כל דוחות הנוכחות הנטענים כרגע.</div>
         </div>
 
-        <div id="attendanceInfoCard" class="card col-8 hidden">
+        <div id="attendanceInfoCard" class="card col-12 hidden">
           <h3 style="margin-top:0;">דיווח נוכחות</h3>
-          <div class="muted">דף זה מוכן. בשלב הבא נוסיף כאן את התוכן שתבחר.</div>
+          <div class="row" style="margin-bottom:8px;">
+            <div class="card" style="padding:8px; text-align:center;"><div class="muted">סה"כ</div><div id="attTotalCount" style="font-size:1.2rem; font-weight:700;">0</div></div>
+            <div class="card" style="padding:8px; text-align:center;"><div class="muted">נוכחים</div><div id="attPresentCount" style="font-size:1.2rem; font-weight:700; color:var(--ok);">0</div></div>
+            <div class="card" style="padding:8px; text-align:center;"><div class="muted">חסרים</div><div id="attMissingCount" style="font-size:1.2rem; font-weight:700; color:var(--bad);">0</div></div>
+            <div class="card" style="padding:8px; text-align:center;"><div class="muted">לא דווח</div><div id="attNoneCount" style="font-size:1.2rem; font-weight:700;">0</div></div>
+          </div>
+          <div class="row">
+            <select id="attPlatoonFilter"></select>
+            <input id="attSearch" placeholder="חיפוש לפי שם...">
+          </div>
+          <div id="attList" style="margin-top:8px;"></div>
+          <div class="row" style="margin-top:10px; align-items:center; flex-wrap:wrap;">
+            <label style="display:flex; align-items:center; gap:4px; flex:0; white-space:nowrap;"><input type="checkbox" id="attIncludePresent"> לצרף שמות נוכחים</label>
+            <label style="display:flex; align-items:center; gap:4px; flex:0; white-space:nowrap;"><input type="checkbox" id="attIncludeExtra"> לצרף "לא ביחידה"</label>
+          </div>
+          <div class="row" style="margin-top:10px;">
+            <button class="btn-primary" id="attSendWhatsAppBtn" type="button">שלח דיווח ל-WhatsApp</button>
+            <button class="btn-soft" id="attDownloadTxtBtn" type="button">הורד TXT</button>
+            <button class="btn-soft" id="attExportCsvBtn" type="button">ייצוא CSV</button>
+            <button class="btn-soft" id="attHistoryBtn" type="button">היסטוריית ייצוא</button>
+            <button class="btn-soft" id="attResetBtn" type="button">איפוס סטטוסים</button>
+          </div>
         </div>
         <div id="reportCard" class="card col-8 hidden">
           <h3 style="margin-top:0;">דיווח נוכחות מחלקתי</h3>
@@ -415,6 +449,30 @@
           </table>
         </div>
       </div>
+    </div>
+  </div>
+
+  <div id="attSendModal" style="display:none; position:fixed; inset:0; background:rgba(10,20,35,0.78); z-index:2000; align-items:center; justify-content:center; padding:10px;">
+    <div class="card" style="width:100%; max-width:600px; max-height:90vh; overflow:auto;">
+      <h3 style="margin-top:0;">תור שליחה</h3>
+      <div class="muted">בחר "שלח" לכל נמען.</div>
+      <div id="attQueueList"></div>
+      <div class="row" style="margin-top:12px;">
+        <button class="btn-soft btn-inline" id="attCloseSendModalBtn" type="button">סגור</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="attHistoryModal" style="display:none; position:fixed; inset:0; background:rgba(10,20,35,0.78); z-index:2000; align-items:center; justify-content:center; padding:10px;">
+    <div class="card" style="width:100%; max-width:600px; max-height:90vh; overflow:auto;">
+      <h3 style="margin-top:0;">היסטוריית ייצוא דוחות</h3>
+      <div class="muted">נשמרת מקומית במכשיר זה בלבד.</div>
+      <div class="row" style="margin-top:10px;">
+        <button class="btn-soft btn-inline" id="attExportHistoryCsvBtn" type="button">ייצא היסטוריה CSV</button>
+        <button class="btn-danger btn-inline" id="attClearHistoryBtn" type="button">נקה היסטוריה</button>
+        <button class="btn-soft btn-inline" id="attCloseHistoryModalBtn" type="button">סגור</button>
+      </div>
+      <div id="attHistoryList"></div>
     </div>
   </div>
 
@@ -1037,6 +1095,7 @@
     function setAppPage(page) {
       state.appPage = (page === 'settings' || page === 'mm_report' || page === 'attendance' || page === 'report') ? page : 'main';
       renderScaffold();
+      if (state.appPage === 'attendance') renderAttendanceCard();
     }
 
     function platoonNameById(id) {
@@ -1060,6 +1119,7 @@
       el('soldierPlatoonSelect').value = initialPlatoon;
       refreshTeamSelects();
       renderRecipientsSelector();
+      fillSelect('attPlatoonFilter', state.platoons, 'name', true);
     }
 
     function refreshTeamSelects() {
@@ -1527,6 +1587,301 @@
       renderCompanyDashboard();
       renderPermissions();
       renderReports();
+      if (state.appPage === 'attendance') renderAttendanceCard();
+    }
+
+    // === Attendance Info Card (Company Commander View) ===
+    const attStatusMap = {};
+    const ATT_DEFAULT_SETTINGS = { includePresentNames: false, includeExtraNames: false };
+    const ATT_MAX_HISTORY = 300;
+    let attSettings = (() => {
+      try { return JSON.parse(localStorage.getItem('attSettings')) || { ...ATT_DEFAULT_SETTINGS }; } catch (e) { return { ...ATT_DEFAULT_SETTINGS }; }
+    })();
+    let attHistory = (() => {
+      try { return JSON.parse(localStorage.getItem('attHistory')) || []; } catch (e) { return []; }
+    })();
+
+    function attSanitizePhone(raw) {
+      const digits = (raw || '').replace(/\D/g, '');
+      if (!digits) return '';
+      if (digits.startsWith('972')) return digits;
+      if (digits.startsWith('0')) return '972' + digits.slice(1);
+      return digits;
+    }
+
+    function renderAttendanceCard() {
+      if (!state.profile || state.appPage !== 'attendance') return;
+      const platoonFilterEl = el('attPlatoonFilter');
+      const searchEl = el('attSearch');
+      const platoonId = platoonFilterEl ? platoonFilterEl.value : 'all';
+      const query = searchEl ? searchEl.value.trim().toLowerCase() : '';
+
+      // Ensure all soldiers have a status entry
+      state.soldiers.forEach((s) => { if (!attStatusMap[s.id]) attStatusMap[s.id] = 'none'; });
+
+      let soldiers = [...state.soldiers];
+      if (platoonId && platoonId !== 'all') {
+        soldiers = soldiers.filter((s) => s.platoonId === platoonId);
+      }
+      if (query) {
+        soldiers = soldiers.filter((s) => (s.name || '').toLowerCase().includes(query));
+      }
+
+      // Group by team
+      const grouped = {};
+      soldiers.forEach((s) => {
+        const team = state.teams.find((t) => t.id === s.teamId);
+        const teamName = team ? team.name : 'ללא צוות';
+        if (!grouped[teamName]) grouped[teamName] = [];
+        grouped[teamName].push(s);
+      });
+
+      const listEl = el('attList');
+      if (!listEl) return;
+      listEl.innerHTML = '';
+
+      const teamNames = Object.keys(grouped).sort((a, b) => a.localeCompare(b, 'he'));
+      if (!teamNames.length) {
+        listEl.innerHTML = '<div class="muted" style="padding:8px;">לא נמצאו חיילים.</div>';
+      } else {
+        teamNames.forEach((teamName) => {
+          const members = grouped[teamName].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'he'));
+          const presentCount = members.filter((m) => attStatusMap[m.id] === 'present').length;
+          const section = document.createElement('section');
+          section.className = 'att-team';
+          section.innerHTML = `<div class="att-team-head"><span>${teamName}</span><span>${presentCount}/${members.length} נוכחים</span></div>`;
+          members.forEach((s) => {
+            const status = attStatusMap[s.id] || 'none';
+            const div = document.createElement('div');
+            div.className = `att-person ${status}`;
+            div.innerHTML = `
+              <div class="att-person-name">${s.name}<div class="muted">${platoonNameById(s.platoonId)}</div></div>
+              <div class="att-actions">
+                <button class="btn-ok" data-aid="${s.id}" data-astatus="present">V</button>
+                <button class="btn-danger" data-aid="${s.id}" data-astatus="missing">X</button>
+                <button style="background:#f2c53d;" data-aid="${s.id}" data-astatus="extra">?</button>
+                <button class="btn-soft" data-aid="${s.id}" data-astatus="none">0</button>
+              </div>
+            `;
+            section.appendChild(div);
+          });
+          listEl.appendChild(section);
+        });
+      }
+
+      listEl.querySelectorAll('button[data-aid]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          attStatusMap[btn.dataset.aid] = btn.dataset.astatus;
+          renderAttendanceCard();
+        });
+      });
+
+      attUpdateStats(soldiers);
+    }
+
+    function attUpdateStats(soldiers) {
+      const present = soldiers.filter((s) => attStatusMap[s.id] === 'present').length;
+      const missing = soldiers.filter((s) => attStatusMap[s.id] === 'missing').length;
+      const none = soldiers.filter((s) => !attStatusMap[s.id] || attStatusMap[s.id] === 'none').length;
+      const total = soldiers.length;
+      const tEl = el('attTotalCount'), pEl = el('attPresentCount'), mEl = el('attMissingCount'), nEl = el('attNoneCount');
+      if (tEl) tEl.textContent = total;
+      if (pEl) pEl.textContent = present;
+      if (mEl) mEl.textContent = missing;
+      if (nEl) nEl.textContent = none;
+    }
+
+    function attGetSnapshot() {
+      const allSoldiers = state.soldiers;
+      const present = allSoldiers.filter((s) => attStatusMap[s.id] === 'present').map((s) => s.name);
+      const missing = allSoldiers.filter((s) => attStatusMap[s.id] === 'missing').map((s) => s.name);
+      const extra = allSoldiers.filter((s) => attStatusMap[s.id] === 'extra').map((s) => s.name);
+      const none = allSoldiers.filter((s) => !attStatusMap[s.id] || attStatusMap[s.id] === 'none').map((s) => s.name);
+      return { present, missing, extra, none };
+    }
+
+    function attGenerateReportText(options = {}) {
+      const { includePresentNames, includeExtraNames } = options;
+      const snap = attGetSnapshot();
+      const now = new Date();
+      const date = now.toLocaleDateString('he-IL');
+      const time = now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+      let txt = `*דוח נוכחות - ${date} ${time}*\n`;
+      txt += `✅ נוכחים: ${snap.present.length}\n`;
+      if (includePresentNames && snap.present.length) txt += `(${snap.present.join(', ')})\n`;
+      txt += `❌ חסרים: ${snap.missing.length}\n`;
+      if (snap.missing.length) txt += `${snap.missing.join(', ')}\n`;
+      txt += `❓ לא ביחידה: ${snap.extra.length}\n`;
+      if (includeExtraNames && snap.extra.length) txt += `${snap.extra.join(', ')}\n`;
+      txt += `⚪ לא דווח: ${snap.none.length}`;
+      return { text: txt, snap };
+    }
+
+    function attTypeLabel(type) {
+      const map = { download_txt: 'הורדת TXT', export_csv: 'ייצוא CSV', send_whatsapp: 'שליחה לוואטסאפ' };
+      return map[type] || type;
+    }
+
+    function attAddHistory(type, extra = {}) {
+      const now = new Date();
+      const { text, snap } = attGenerateReportText(attSettings);
+      const entry = {
+        id: now.getTime(),
+        timeIso: now.toISOString(),
+        timeLocal: now.toLocaleString('he-IL'),
+        type,
+        targets: extra.targets || '',
+        fileName: extra.fileName || '',
+        present: snap.present,
+        missing: snap.missing,
+        extra: snap.extra,
+        none: snap.none,
+        reportText: text
+      };
+      attHistory.unshift(entry);
+      if (attHistory.length > ATT_MAX_HISTORY) attHistory = attHistory.slice(0, ATT_MAX_HISTORY);
+      localStorage.setItem('attHistory', JSON.stringify(attHistory));
+    }
+
+    function attDownloadTxt() {
+      attSettings.includePresentNames = el('attIncludePresent')?.checked || false;
+      attSettings.includeExtraNames = el('attIncludeExtra')?.checked || false;
+      localStorage.setItem('attSettings', JSON.stringify(attSettings));
+      const { text } = attGenerateReportText(attSettings);
+      const cleanText = text.replace(/\*/g, '');
+      const fileName = `attendance_${new Date().toISOString().slice(0, 10)}.txt`;
+      const blob = new Blob([cleanText], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(url);
+      attAddHistory('download_txt', { fileName });
+    }
+
+    function attExportCsv() {
+      const statusMap = { present: 'נוכח', missing: 'חסר', extra: 'לא ביחידה', none: 'לא דווח' };
+      let csv = '\uFEFFשם,מחלקה,צוות,סטטוס\n';
+      state.soldiers.forEach((s) => {
+        const platoonName = platoonNameById(s.platoonId);
+        const team = state.teams.find((t) => t.id === s.teamId);
+        const teamName = team ? team.name : '';
+        const status = attStatusMap[s.id] || 'none';
+        csv += `"${(s.name || '').replace(/"/g, '""')}","${platoonName.replace(/"/g, '""')}","${teamName.replace(/"/g, '""')}","${statusMap[status] || 'לא דווח'}"\n`;
+      });
+      const fileName = `attendance_${new Date().toISOString().slice(0, 10)}.csv`;
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(url);
+      attAddHistory('export_csv', { fileName });
+    }
+
+    function attOpenSendQueue() {
+      attSettings.includePresentNames = el('attIncludePresent')?.checked || false;
+      attSettings.includeExtraNames = el('attIncludeExtra')?.checked || false;
+      localStorage.setItem('attSettings', JSON.stringify(attSettings));
+      const recipients = state.users.filter((u) => u.phone);
+      if (!recipients.length) {
+        showError('לא נמצאו נמענים עם מספר טלפון. הוסיפו טלפון בהגדרות המשתמשים.');
+        return;
+      }
+      const { text } = attGenerateReportText(attSettings);
+      const encodedMsg = encodeURIComponent(text);
+      const queueEl = el('attQueueList');
+      queueEl.innerHTML = '';
+      recipients.forEach((u) => {
+        const phone = attSanitizePhone(u.phone);
+        if (!phone) return;
+        const item = document.createElement('div');
+        item.className = 'att-queue-item';
+        const info = document.createElement('div');
+        info.innerHTML = `<strong>${u.fullName}</strong> <span class="muted">${roleLabel(u.role)}</span>`;
+        const btn = document.createElement('button');
+        btn.className = 'btn-primary btn-inline';
+        btn.textContent = 'שלח';
+        btn.addEventListener('click', () => {
+          window.open(`https://wa.me/${phone}?text=${encodedMsg}`, '_blank');
+          btn.textContent = 'נפתח';
+          btn.disabled = true;
+          attAddHistory('send_whatsapp', { targets: u.fullName });
+        });
+        item.appendChild(info);
+        item.appendChild(btn);
+        queueEl.appendChild(item);
+      });
+      el('attSendModal').style.display = 'flex';
+    }
+
+    function attResetStatuses() {
+      if (!confirm('לאפס את כל הסטטוסים ל"לא דווח"?')) return;
+      state.soldiers.forEach((s) => { attStatusMap[s.id] = 'none'; });
+      renderAttendanceCard();
+    }
+
+    function attRenderHistory() {
+      const listEl = el('attHistoryList');
+      listEl.innerHTML = '';
+      if (!attHistory.length) {
+        listEl.innerHTML = '<div style="padding:8px; color:#6b7f93;">אין היסטוריה עדיין.</div>';
+        return;
+      }
+      attHistory.forEach((h) => {
+        const item = document.createElement('div');
+        item.className = 'att-history-item';
+        item.innerHTML = `
+          <div style="display:flex; justify-content:space-between; gap:8px; align-items:center;">
+            <div><strong>${attTypeLabel(h.type)}</strong> <span class="muted">${h.timeLocal}</span>${h.targets ? `<div class="muted">יעד: ${h.targets}</div>` : ''}${h.fileName ? `<div class="muted">קובץ: ${h.fileName}</div>` : ''}</div>
+            <button class="btn-soft btn-inline" data-toggle-id="${h.id}">פירוט</button>
+          </div>
+          <div id="attdet-${h.id}" class="att-history-details">
+            <div>נוכחים (${(h.present || []).length}): ${(h.present || []).join(', ') || '-'}</div>
+            <div>חסרים (${(h.missing || []).length}): ${(h.missing || []).join(', ') || '-'}</div>
+            <div>לא ביחידה (${(h.extra || []).length}): ${(h.extra || []).join(', ') || '-'}</div>
+            <div>לא דווח (${(h.none || []).length}): ${(h.none || []).join(', ') || '-'}</div>
+          </div>
+        `;
+        listEl.appendChild(item);
+      });
+      listEl.querySelectorAll('button[data-toggle-id]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const box = document.getElementById(`attdet-${btn.dataset.toggleId}`);
+          if (box) box.style.display = box.style.display === 'block' ? 'none' : 'block';
+        });
+      });
+    }
+
+    function attExportHistoryCsv() {
+      if (!attHistory.length) {
+        showError('אין היסטוריה לייצוא.');
+        return;
+      }
+      let csv = '\uFEFFתאריך ושעה,סוג פעולה,יעד,קובץ,נוכחים,חסרים,לא ביחידה,לא דווח\n';
+      attHistory.forEach((h) => {
+        const row = [
+          h.timeLocal,
+          attTypeLabel(h.type),
+          h.targets || '',
+          h.fileName || '',
+          (h.present || []).join(' | '),
+          (h.missing || []).join(' | '),
+          (h.extra || []).join(' | '),
+          (h.none || []).join(' | ')
+        ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',');
+        csv += row + '\n';
+      });
+      const fileName = `attendance_history_${new Date().toISOString().slice(0, 10)}.csv`;
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(url);
     }
 
         async function bootLoggedIn(user) {
@@ -1699,6 +2054,35 @@
     el('exportReportsCsvBtn').addEventListener('click', () => {
       try { exportReportsCsv(); } catch (e) { showError(e.message); }
     });
+
+    // Attendance card event listeners
+    el('attSearch').addEventListener('input', renderAttendanceCard);
+    el('attPlatoonFilter').addEventListener('change', renderAttendanceCard);
+    el('attSendWhatsAppBtn').addEventListener('click', attOpenSendQueue);
+    el('attDownloadTxtBtn').addEventListener('click', attDownloadTxt);
+    el('attExportCsvBtn').addEventListener('click', attExportCsv);
+    el('attHistoryBtn').addEventListener('click', () => { attRenderHistory(); el('attHistoryModal').style.display = 'flex'; });
+    el('attResetBtn').addEventListener('click', attResetStatuses);
+    el('attCloseSendModalBtn').addEventListener('click', () => { el('attSendModal').style.display = 'none'; });
+    el('attCloseHistoryModalBtn').addEventListener('click', () => { el('attHistoryModal').style.display = 'none'; });
+    el('attExportHistoryCsvBtn').addEventListener('click', attExportHistoryCsv);
+    el('attClearHistoryBtn').addEventListener('click', () => {
+      if (!confirm('למחוק את כל היסטוריית הייצוא?')) return;
+      attHistory = [];
+      localStorage.setItem('attHistory', JSON.stringify(attHistory));
+      attRenderHistory();
+    });
+    el('attIncludePresent').addEventListener('change', () => {
+      attSettings.includePresentNames = el('attIncludePresent').checked;
+      localStorage.setItem('attSettings', JSON.stringify(attSettings));
+    });
+    el('attIncludeExtra').addEventListener('change', () => {
+      attSettings.includeExtraNames = el('attIncludeExtra').checked;
+      localStorage.setItem('attSettings', JSON.stringify(attSettings));
+    });
+    // Initialize att checkboxes from saved settings
+    el('attIncludePresent').checked = !!attSettings.includePresentNames;
+    el('attIncludeExtra').checked = !!attSettings.includeExtraNames;
 
     switchAuthMode('login');
     updateRegisterRoleFields();
