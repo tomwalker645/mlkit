@@ -49,9 +49,12 @@ Note: due to how this repo works, we no longer accept pull requests directly. In
 
 ### שלב 3 — הוספת ה-Secret ב-GitHub ✅
 
-זה השלב שמחבר בין GitHub ל-Firebase:
+זה השלב שמחבר בין GitHub ל-Firebase.
 
-1. היכנסו לדף ה-repository ב-GitHub:  
+> ⚠️ **שימו לב:** אין צורך ליצור repository חדש! ה-repository **כבר קיים**.  
+> הכפתור נקרא "New repository secret" — כלומר "secret חדש עבור ה-repository הנוכחי", **לא** repository חדש.
+
+1. היכנסו לדף ה-repository הקיים ב-GitHub:  
    **`https://github.com/tomwalker645/mlkit`**
 
 2. לחצו על **Settings** (הגדרות) — בשורה העליונה של ה-repo
@@ -59,7 +62,8 @@ Note: due to how this repo works, we no longer accept pull requests directly. In
 3. בתפריט השמאלי, תחת **Security**, לחצו על:  
    **Secrets and variables → Actions**
 
-4. לחצו על הכפתור הירוק **New repository secret**
+4. לחצו על הכפתור הירוק **New repository secret**  
+   *(זה רק שם של כפתור — לא יוצרים repository חדש)*
 
 5. מלאו את השדות:
    - **Name:** `FIREBASE_SERVICE_ACCOUNT`
