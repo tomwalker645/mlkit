@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Predictor Analysis Tool  (v2.2)
+Predictor Analysis Tool  (v2.3)
 ================================
 Reads a Telegram channel export (result_filtered.json) containing Hebrew
 rocket-alert messages, and finds which settlements are the best predictors
@@ -25,6 +25,14 @@ Usage
     py analyze_predictors_en_safe.py --input result_filtered.json \
         --target AUTO_BEIT_HAG --force-check "להב,להבים,מעון"
 
+    # Analyse only Range-1 settlements (pre-defined close-range group):
+    py analyze_predictors_en_safe.py --input result_filtered.json \
+        --target AUTO_BEIT_HAG --range 1 --html --output range1.html
+
+    # Analyse only Range-2 settlements (pre-defined mid-range group):
+    py analyze_predictors_en_safe.py --input result_filtered.json \
+        --target AUTO_BEIT_HAG --range 2 --html --output range2.html
+
     # Output Hebrew settlement names instead of English:
     py analyze_predictors_en_safe.py --input result_filtered.json \
         --target AUTO_BEIT_HAG --hebrew --output output.txt
@@ -38,6 +46,16 @@ Output
   - Table 1: Top N settlements by precision (P(target|settlement fires first))
   - Table 2: Top K operational triggers (weighted score of precision + lead-time + volume)
   - Table 2+: Additional operational triggers beyond top K
+  - HTML mode adds a "Decision sentence" column (e.g. "If alarm at X → ~59% chance at target")
+
+New in v2.3
+-----------
+  --range N         Pre-defined settlement groups (shorthand for --force-check):
+                      1 = close range: להבים, סנסנה, גבעות בר, אתר דודאים, עומר
+                      2 = mid range: אשתמוע, כרמל, מעון, שמעה, להב, תנא עומרים
+                    Combines with any extra --force-check names.
+  HTML decision     The --html output now adds a "Decision sentence" column to Table 1
+                    showing plain-language probability for each predictor settlement.
 
 New in v2.2
 -----------
@@ -71,7 +89,7 @@ from datetime import datetime, timedelta
 from bisect import bisect_left
 from statistics import median
 
-VERSION = "2.2"
+VERSION = "2.3"
 
 DEFAULT_TARGET = "AUTO_BEIT_HAG"
 DEFAULT_MIN_VOLUME = 20
@@ -93,6 +111,28 @@ GEO_PRIORITY_NAMES = [
     "\u05e1\u05e0\u05e1\u05e0\u05d4",  # סנסנה (Sansana)
     "\u05e9\u05de\u05e2\u05d4",      # שמעה  (Shema)
 ]
+
+# Pre-defined range groups for the --range flag.
+# Range 1 — close-range settlements on the direct firing axis (top predictors).
+RANGE_1_NAMES = [
+    "\u05dc\u05d4\u05d1\u05d9\u05dd",          # להבים  (Lehavim)
+    "\u05e1\u05e0\u05e1\u05e0\u05d4",           # סנסנה  (Sansana)
+    "\u05d2\u05d1\u05e2\u05d5\u05ea \u05d1\u05e8",  # גבעות בר (Giv'ot Bar)
+    "\u05d0\u05ea\u05e8 \u05d3\u05d5\u05d3\u05d0\u05d9\u05dd",  # אתר דודאים (Dorot site)
+    "\u05e2\u05d5\u05de\u05e8",                 # עומר   (Omer)
+]
+
+# Range 2 — mid-range settlements in the broader Hebron Hills area.
+RANGE_2_NAMES = [
+    "\u05d0\u05e9\u05ea\u05de\u05d5\u05e2",     # אשתמוע (Eshtemoa)
+    "\u05db\u05e8\u05de\u05dc",                 # כרמל   (Carmel)
+    "\u05de\u05e2\u05d5\u05df",                 # מעון   (Ma'on)
+    "\u05e9\u05de\u05e2\u05d4",                 # שמעה   (Shema)
+    "\u05dc\u05d4\u05d1",                       # להב    (Lahav)
+    "\u05ea\u05e0\u05d0 \u05e2\u05d5\u05de\u05e8\u05d9\u05dd",  # תנא עומרים (Tene Omarim)
+]
+
+NAMED_RANGES = {1: RANGE_1_NAMES, 2: RANGE_2_NAMES}
 
 # Width of the Table 1 header row: must match the format string in main()
 TABLE1_WIDTH = 98
@@ -595,6 +635,21 @@ def render_html(
             f'<td class="meta-value">{esc(str(value))}</td></tr>'
         )
 
+    # ── Decision sentence helper ────────────────────────────────────────────
+    def decision_sentence(r, target_display_name):
+        """Plain-language probability sentence for HTML Table 1."""
+        prec_pct = round(r["precision"] * 100)
+        sname = display_name_fn(r["settlement"])
+        if args.hebrew:
+            return (
+                f"אם יש אזעקה ב{esc(sname)}, הסיכוי לאזעקה "
+                f"ב{esc(target_display_name)} בתוך 10 דקות הוא בערך {prec_pct}%."
+            )
+        return (
+            f"If alarm at {esc(sname)} → ~{prec_pct}% chance of alarm "
+            f"at {esc(target_display_name)} within 10 min."
+        )
+
     # ── Table 1 rows ────────────────────────────────────────────────────────
     t1_rows = []
     for i, r in enumerate(top_n_rows, 1):
@@ -629,6 +684,7 @@ def render_html(
           <td class="lead-med">{med_lead_str}</td>
           <td class="num">{pct(r['p_settlement_given_target'])}</td>
           <td class="hits">{r['success_count']}/{r['total_events']}</td>
+          <td class="decision">{decision_sentence(r, target_display)}</td>
         </tr>"""
         )
 
@@ -783,6 +839,7 @@ def render_html(
   td.hits {{ text-align: right; color: #555; white-space: nowrap; }}
   td.lead, td.lead-med {{ text-align: center; width: 110px; }}
   td.no-data {{ text-align: center; padding: 14px; color: #888; font-style: italic; }}
+  td.decision {{ font-size: .82rem; color: #37474f; max-width: 340px; }}
 
   /* ── force badge ── */
   .force-badge {{
@@ -837,6 +894,7 @@ def render_html(
       {meta("Date range", str(start_dt)[:10] + "  →  " + str(end_dt)[:10])}
       {meta("Min volume", args.min_volume)}
       {meta("Prediction window", f"{MIN_LEAD_SEC}s – {MAX_LEAD_SEC}s")}
+      {(meta("Range preset", args.range_preset) if args.range_preset is not None else "")}
       {meta("Force-checked settlements", force_list)}
     </table>
     <p style="font-size:.78rem;color:#888;margin-top:6px">
@@ -858,6 +916,7 @@ def render_html(
           <th>Med Lead</th>
           <th>P(sett|tgt)</th>
           <th>Hits/Total</th>
+          <th class="left">Decision</th>
         </tr>
       </thead>
       <tbody>
@@ -936,6 +995,12 @@ def main():
             "--target AUTO_BEIT_HAG --min-volume 20 --output output.txt\n\n"
             "  # List all available settlements (to pick a --target):\n"
             "  py analyze_predictors_en_safe.py --input result_filtered.json --list-targets\n\n"
+            "  # Range-1 settlements as styled HTML (close-range group):\n"
+            "  py analyze_predictors_en_safe.py --input result_filtered.json "
+            "--target AUTO_BEIT_HAG --range 1 --html --output range1.html\n\n"
+            "  # Range-2 settlements as styled HTML (mid-range group):\n"
+            "  py analyze_predictors_en_safe.py --input result_filtered.json "
+            "--target AUTO_BEIT_HAG --range 2 --html --output range2.html\n\n"
             "  # Force-check geographic priority settlements:\n"
             "  py analyze_predictors_en_safe.py --input result_filtered.json "
             "--target AUTO_BEIT_HAG --force-check \"להב,להבים,מעון\"\n\n"
@@ -1011,6 +1076,20 @@ def main():
             "regardless of --min-volume (e.g. \"להב,להבים,מעון,סנסנה,שמעה\"). "
             "When target is AUTO_BEIT_HAG the geographic priority settlements "
             "(להב, להבים, תנא עומרים, מעון, סנסנה, שמעה) are added automatically."
+        ),
+    )
+    parser.add_argument(
+        "--range",
+        type=int,
+        default=None,
+        choices=[1, 2],
+        metavar="N",
+        dest="range_preset",
+        help=(
+            "Pre-defined settlement group to force-check (1 or 2). "
+            "Range 1 (close): להבים, סנסנה, גבעות בר, אתר דודאים, עומר. "
+            "Range 2 (mid): אשתמוע, כרמל, מעון, שמעה, להב, תנא עומרים. "
+            "Combines with any extra --force-check names."
         ),
     )
     parser.add_argument(
@@ -1121,6 +1200,11 @@ def main():
     force_set = set()
     if args.target == "AUTO_BEIT_HAG":
         force_set = {norm_key(n) for n in GEO_PRIORITY_NAMES}
+    # Add settlements from --range preset (if given)
+    if args.range_preset is not None:
+        range_names = NAMED_RANGES[args.range_preset]
+        for name in range_names:
+            force_set.add(norm_key(name))
     # Add any extra names from --force-check
     if args.force_check:
         for name in args.force_check.split(","):
@@ -1158,6 +1242,8 @@ def main():
     lines.append(f"Date range     : {start_dt} .. {end_dt}")
     lines.append(f"Min volume     : {args.min_volume}")
     lines.append(f"Window         : {MIN_LEAD_SEC}s .. {MAX_LEAD_SEC}s")
+    if args.range_preset is not None:
+        lines.append(f"Range preset   : {args.range_preset}")
     if force_set:
         lines.append(f"Force-check    : {', '.join(sorted(force_set))}  (* = low-volume)")
     lines.append("")

@@ -1,4 +1,4 @@
-# Predictor Analysis — Rocket Alert Settlement Data  (v2.2)
+# Predictor Analysis — Rocket Alert Settlement Data  (v2.3)
 
 This tool reads a Telegram channel export (`result_filtered.json`) containing
 Hebrew rocket-alert messages and produces two tables:
@@ -8,12 +8,16 @@ Hebrew rocket-alert messages and produces two tables:
 2. **Top K operational triggers** — a weighted score combining precision,
    lead-time quality, and volume.
 
+The HTML output (`--html`) also adds a **Decision sentence** column to Table 1,
+e.g. *"If alarm at Lehavim → ~59% chance of alarm at Beit Hagai within 10 min."*
+
 ---
 
 ## ⚠️ Make Sure You Have the Latest Version
 
-> If you see `unrecognized arguments: --html` or `unrecognized arguments: --output` or
-> `unrecognized arguments: --hebrew`, **you are running an old copy of the script**.
+> If you see `unrecognized arguments: --range`, `unrecognized arguments: --html`,
+> `unrecognized arguments: --output`, or `unrecognized arguments: --hebrew`,
+> **you are running an old copy of the script**.
 > Download the latest `analyze_predictors_en_safe.py` from this repository and replace
 > your local copy before running any commands.
 
@@ -21,7 +25,7 @@ Hebrew rocket-alert messages and produces two tables:
 
 ```powershell
 py analyze_predictors_en_safe.py --version
-# Should print: analyze_predictors_en_safe.py v2.2
+# Should print: analyze_predictors_en_safe.py v2.3 (or newer)
 ```
 
 If the `--version` flag itself is not recognized, your copy is older than v2.0 — download the latest file from the repository.
@@ -52,6 +56,20 @@ py analyze_predictors_en_safe.py --input result_filtered.json --target AUTO_BEIT
 start top10.html
 ```
 
+**Range-1 settlements (close-range group) as styled HTML:**
+
+```powershell
+py analyze_predictors_en_safe.py --input result_filtered.json --target AUTO_BEIT_HAG --range 1 --html --output range1.html
+start range1.html
+```
+
+**Range-2 settlements (mid-range group) as styled HTML:**
+
+```powershell
+py analyze_predictors_en_safe.py --input result_filtered.json --target AUTO_BEIT_HAG --range 2 --html --output range2.html
+start range2.html
+```
+
 **List all available settlements (to pick a custom `--target`):**
 
 ```powershell
@@ -73,9 +91,10 @@ py analyze_predictors_en_safe.py --input result_filtered.json --list-targets
 | `--top-k` | `3` | Number of rows in Table 2 (operational triggers) |
 | `--output FILE` | *(console / output.html)* | Write results to FILE in UTF-8 (recommended on Windows) |
 | `--list-targets` | — | List all qualifying settlements and exit |
+| `--range N` | — | Pre-defined settlement group to force-check: **1** = close range (להבים, סנסנה, גבעות בר, אתר דודאים, עומר), **2** = mid range (אשתמוע, כרמל, מעון, שמעה, להב, תנא עומרים). Can be combined with `--force-check` |
 | `--force-check NAMES` | *(geo-priority)* | Comma-separated Hebrew names always included, even below `--min-volume`. Rows marked `★`. When target is `AUTO_BEIT_HAG`, the six geographic-priority settlements (להב, להבים, תנא עומרים, מעון, סנסנה, שמעה) are added automatically |
 | `--hebrew` | — | Display settlement names in Hebrew instead of English |
-| `--html` | — | Generate a self-contained styled HTML table instead of plain text. Defaults to `output.html` if `--output` is not given |
+| `--html` | — | Generate a self-contained styled HTML table instead of plain text. Defaults to `output.html` if `--output` is not given. Includes a **Decision sentence** column |
 
 ---
 
@@ -106,8 +125,9 @@ The tool expects a standard Telegram channel export file:
 
 | Error message | Cause | Fix |
 |---|---|---|
-| `unrecognized arguments: --html` | You are running an old copy of the script | Download the latest `analyze_predictors_en_safe.py` from this repository and replace your local copy |
-| `unrecognized arguments: --output` | Same as above — old version | Download the latest version (v2.2+) |
+| `unrecognized arguments: --range` | You are running an old copy of the script | Download the latest `analyze_predictors_en_safe.py` from this repository and replace your local copy |
+| `unrecognized arguments: --html` | Same as above — old version | Download the latest version (v2.3+) |
+| `unrecognized arguments: --output` | Same as above — old version | Download the latest version (v2.3+) |
 | `ERROR: Input file not found` | The JSON file path is wrong | Check spelling and directory |
 | `ERROR: No rocket-alert settlement events found` | Date range too narrow, or messages don't match the expected format | Widen `--start-date` |
 | `ERROR: Could not auto-detect a target` | No settlement containing the target keywords was found | Run with `--list-targets` to see options, then use `--target <name>` |
