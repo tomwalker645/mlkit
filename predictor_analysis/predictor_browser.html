@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ניתוח מנבאי אזעקות 🎯</title>
+<style>
+/* ── reset & base ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:'Segoe UI',Arial,sans-serif;
+  background:#0f1923;
+  color:#e8edf2;
+  min-height:100vh;
+  padding:16px;
+}
+
+/* ── layout ── */
+.page{max-width:900px;margin:0 auto}
+
+/* ── header ── */
+.app-header{
+  background:linear-gradient(135deg,#0d3b6e 0%,#1565a0 100%);
+  border-radius:14px;
+  padding:20px 24px 16px;
+  margin-bottom:16px;
+  border:1px solid #1e4d7a;
+}
+.app-header h1{font-size:1.4rem;font-weight:700;letter-spacing:.3px;color:#fff}
+.app-header .sub{font-size:.82rem;color:#90b8d8;margin-top:4px}
+
+/* ── drop zone ── */
+#dropZone{
+  border:2.5px dashed #2e6da4;
+  border-radius:14px;
+  padding:36px 20px;
+  text-align:center;
+  cursor:pointer;
+  background:#131f2e;
+  transition:all .2s;
+  margin-bottom:16px;
+}
+#dropZone.drag-over{border-color:#4fc3f7;background:#1a2e40}
+#dropZone h2{font-size:1.1rem;color:#90b8d8;margin-bottom:8px}
+#dropZone p{font-size:.85rem;color:#5f8baa}
+#dropZone .file-name{color:#4fc3f7;font-weight:600;font-size:.9rem;margin-top:10px}
+#fileInput{display:none}
+.pick-btn{
+  display:inline-block;
+  margin-top:12px;
+  background:#1565a0;
+  color:#fff;
+  border:none;
+  border-radius:8px;
+  padding:9px 20px;
+  font-size:.9rem;
+  cursor:pointer;
+  font-family:inherit;
+}
+.pick-btn:hover{background:#1976d2}
+
+/* ── settings panel ── */
+.settings{
+  background:#131f2e;
+  border:1px solid #1e3a52;
+  border-radius:12px;
+  padding:16px;
+  margin-bottom:16px;
+  display:none;
+}
+.settings.visible{display:block}
+.settings h3{font-size:.9rem;color:#90b8d8;margin-bottom:12px;font-weight:600}
+.settings-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px 16px;
+}
+@media(max-width:480px){.settings-grid{grid-template-columns:1fr}}
+.field label{display:block;font-size:.78rem;color:#6b98b8;margin-bottom:4px}
+.field input,.field select{
+  width:100%;
+  background:#1c2d3f;
+  border:1px solid #2e4d6a;
+  color:#e8edf2;
+  border-radius:7px;
+  padding:7px 10px;
+  font-size:.88rem;
+  font-family:inherit;
+}
+.field input:focus,.field select:focus{outline:none;border-color:#4fc3f7}
+
+/* Range toggle */
+.range-pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.range-pill{
+  background:#1c2d3f;
+  border:1px solid #2e4d6a;
+  color:#90b8d8;
+  border-radius:20px;
+  padding:5px 14px;
+  font-size:.82rem;
+  cursor:pointer;
+  transition:all .15s;
+  font-family:inherit;
+}
+.range-pill.active{background:#1565a0;border-color:#4fc3f7;color:#fff}
+
+.analyze-btn{
+  display:block;
+  width:100%;
+  margin-top:14px;
+  background:linear-gradient(135deg,#1565a0,#0d47a1);
+  color:#fff;
+  border:none;
+  border-radius:9px;
+  padding:12px;
+  font-size:1rem;
+  font-weight:700;
+  cursor:pointer;
+  font-family:inherit;
+  transition:opacity .2s;
+}
+.analyze-btn:hover{opacity:.9}
+.analyze-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── status / error ── */
+#status{
+  text-align:center;
+  padding:10px;
+  font-size:.88rem;
+  color:#90b8d8;
+  display:none;
+}
+#error{
+  background:#3d1515;
+  border:1px solid #7b2020;
+  color:#f87171;
+  border-radius:10px;
+  padding:12px 16px;
+  font-size:.88rem;
+  margin-bottom:14px;
+  display:none;
+}
+
+/* ── summary bar ── */
+#summary{
+  background:#131f2e;
+  border:1px solid #1e3a52;
+  border-radius:10px;
+  padding:12px 16px;
+  margin-bottom:16px;
+  font-size:.84rem;
+  color:#90b8d8;
+  display:none;
+}
+#summary strong{color:#4fc3f7}
+
+/* ── results grid ── */
+#results{display:none}
+.results-label{
+  font-size:.8rem;
+  color:#5f8baa;
+  text-transform:uppercase;
+  letter-spacing:.5px;
+  margin-bottom:10px;
+  padding-right:4px;
+}
+.cards{display:flex;flex-direction:column;gap:12px}
+
+/* ── predictor card ── */
+.card{
+  background:#131f2e;
+  border:1px solid #1e3a52;
+  border-radius:12px;
+  padding:16px;
+  display:flex;
+  align-items:flex-start;
+  gap:14px;
+  position:relative;
+  overflow:hidden;
+  transition:transform .1s;
+}
+.card:hover{transform:translateX(-3px)}
+.card.force-card{border-color:#f57f17;border-width:1.5px}
+
+/* rank badge */
+.rank{
+  flex-shrink:0;
+  width:34px;
+  height:34px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:.85rem;
+  font-weight:700;
+  color:#fff;
+}
+.rank.top{background:#1565a0}
+.rank.mid{background:#1a3a52}
+.rank.low{background:#1f2a36}
+
+/* big probability circle */
+.prob-circle{
+  flex-shrink:0;
+  width:70px;
+  height:70px;
+  border-radius:50%;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  font-weight:700;
+}
+.prob-circle .pct{font-size:1.2rem;line-height:1}
+.prob-circle .lbl{font-size:.62rem;opacity:.8;margin-top:2px}
+
+/* color tiers */
+.tier-green .prob-circle{background:#1b5e20;color:#a5d6a7;border:2px solid #388e3c}
+.tier-lime  .prob-circle{background:#33691e;color:#c5e1a5;border:2px solid #689f38}
+.tier-amber .prob-circle{background:#e65100;color:#ffe0b2;border:2px solid #f57c00}
+.tier-red   .prob-circle{background:#b71c1c;color:#ffcdd2;border:2px solid #c62828}
+
+/* card body */
+.card-body{flex:1;min-width:0}
+.settlement-name{
+  font-size:1.05rem;
+  font-weight:700;
+  color:#e8edf2;
+  margin-bottom:5px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.force-badge{
+  font-size:.65rem;
+  background:#f57f17;
+  color:#fff;
+  border-radius:4px;
+  padding:1px 5px;
+}
+.decision-text{
+  font-size:.92rem;
+  color:#b0d0e8;
+  margin-bottom:8px;
+  line-height:1.4;
+}
+.decision-text strong{color:#fff}
+
+/* mini stats */
+.mini-stats{display:flex;gap:12px;flex-wrap:wrap}
+.stat{
+  font-size:.75rem;
+  color:#5f8baa;
+  display:flex;
+  flex-direction:column;
+}
+.stat .val{color:#90b8d8;font-weight:600;font-size:.8rem}
+
+/* lead bar */
+.lead-bar-wrap{
+  height:4px;
+  background:#1c2d3f;
+  border-radius:2px;
+  margin-top:8px;
+  overflow:hidden;
+}
+.lead-bar{height:4px;background:#1565a0;border-radius:2px;transition:width .4s}
+
+/* ── no-data / empty ── */
+.no-data{
+  text-align:center;
+  padding:30px;
+  color:#5f8baa;
+  font-size:.9rem;
+}
+
+/* ── footer ── */
+.footer{
+  text-align:center;
+  font-size:.72rem;
+  color:#3a5a72;
+  margin-top:20px;
+  padding-bottom:16px;
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ── Header ── -->
+<div class="app-header">
+  <h1>🎯 ניתוח מנבאי אזעקות</h1>
+  <div class="sub">טען קובץ ייצוא טלגרם · הכל רץ בדפדפן · אין צורך ב-Python או חיבור לאינטרנט</div>
+</div>
+
+<!-- ── Drop Zone ── -->
+<div id="dropZone">
+  <h2>📂 גרור לכאן את קובץ result_filtered.json</h2>
+  <p>או לחץ לבחירת קובץ מהמחשב</p>
+  <div class="file-name" id="fileName"></div>
+  <button class="pick-btn" onclick="document.getElementById('fileInput').click()">בחר קובץ</button>
+  <input type="file" id="fileInput" accept=".json">
+</div>
+
+<!-- ── Settings ── -->
+<div class="settings" id="settings">
+  <h3>⚙️ הגדרות</h3>
+  <div class="settings-grid">
+    <div class="field">
+      <label>יישוב יעד</label>
+      <select id="targetSelect"></select>
+    </div>
+    <div class="field">
+      <label>מינימום אזעקות ליישוב</label>
+      <input type="number" id="minVolume" value="1" min="1" max="999">
+    </div>
+    <div class="field">
+      <label>תאריך התחלה</label>
+      <input type="date" id="startDate" value="2026-02-28">
+    </div>
+    <div class="field">
+      <label>תאריך סיום (ריק = עכשיו)</label>
+      <input type="date" id="endDate">
+    </div>
+  </div>
+
+  <div style="margin-top:12px">
+    <label style="font-size:.78rem;color:#6b98b8;display:block;margin-bottom:6px">סינון לפי טווח גיאוגרפי</label>
+    <div class="range-pills">
+      <button class="range-pill active" data-range="0" onclick="setRange(0)">הכל</button>
+      <button class="range-pill" data-range="1" onclick="setRange(1)">טווח 1 — קרוב (להבים, סנסנה…)</button>
+      <button class="range-pill" data-range="2" onclick="setRange(2)">טווח 2 — בינוני (אשתמוע, מעון…)</button>
+    </div>
+  </div>
+
+  <button class="analyze-btn" id="analyzeBtn" onclick="runAnalysis()">🔍 נתח עכשיו</button>
+</div>
+
+<!-- ── Error / Status ── -->
+<div id="error"></div>
+<div id="status"></div>
+
+<!-- ── Summary ── -->
+<div id="summary"></div>
+
+<!-- ── Results ── -->
+<div id="results">
+  <div class="results-label" id="resultsLabel"></div>
+  <div class="cards" id="cards"></div>
+</div>
+
+<div class="footer">רץ לחלוטין בדפדפן — הנתונים שלך לא עוזבים את המחשב</div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+// CONSTANTS (ported from analyze_predictors_en_safe.py)
+// ══════════════════════════════════════════════════════════════════
+const ROCKET_PHRASE = 'ירי רקטות וטילים';
+const NON_ALERT_PATTERNS = ['מבזק', 'הישמעו להנחיות', 'בדקות הקרובות צפויות להתקבל התרעות'];
+const TIME_MARKERS = ['מיידי','15 שניות','30 שניות','45 שניות','דקה','דקה וחצי','2 דקות','3 דקות'];
+const MIN_LEAD_SEC = 15;
+const MAX_LEAD_SEC = 600;
+const DEFAULT_START = '2026-02-28';
+
+const GEO_PRIORITY = ['להב','להבים','תנא עומרים','מעון','סנסנה','שמעה'];
+const RANGE_1 = ['להבים','סנסנה','גבעות בר','אתר דודאים','עומר'];
+const RANGE_2 = ['אשתמוע','כרמל','מעון','שמעה','להב','תנא עומרים'];
+const NAMED_RANGES = {1: RANGE_1, 2: RANGE_2};
+
+// Hebrew → English settlement display map
+const SETTLEMENT_EN = {
+  'אשקלון':'Ashkelon','אשדוד':'Ashdod','שדרות':'Sderot','נתיבות':'Netivot',
+  'אופקים':'Ofakim','קריית ארבע':'Kiryat Arba','קריית גת':'Kiryat Gat',
+  'קריית מלאכי':'Kiryat Malachi','לכיש':'Lachish','גן יבנה':'Gan Yavne',
+  'יבנה':'Yavne','גדרה':'Gedera','רחובות':'Rehovot','ראשון לציון':'Rishon LeZion',
+  'בית חגי':'Beit Hagai','קריית גת':'Kiryat Gat','להב':'Lahav','להבים':'Lehavim',
+  'תנא עומרים':'Tene Omarim','מעון':'Ma\'on','סנסנה':'Sansana','שמעה':'Shema',
+  'אשתמוע':'Eshtemoa','כרמל':'Carmel','גבעות בר':'Giv\'ot Bar','עומר':'Omer',
+  'באר שבע':'Beer Sheva','דימונה':'Dimona','ערד':'Arad','רהט':'Rahat',
+  'ירושלים':'Jerusalem','חברון':'Hebron','בית לחם':'Bethlehem',
+  'קריית שמונה':'Kiryat Shmona','חיפה':'Haifa','נתניה':'Netanya',
+  'תל אביב':'Tel Aviv','פתח תקווה':'Petah Tikva','ראש העין':'Rosh HaAyin',
+};
+
+// ══════════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════════
+let loadedMessages = null;
+let selectedRange = 0;
+
+// ══════════════════════════════════════════════════════════════════
+// TEXT PROCESSING
+// ══════════════════════════════════════════════════════════════════
+function normKey(s) {
+  return s.replace(/[״׳'"]/g,'').replace(/\s+/g,' ').trim();
+}
+function normalizeText(s) {
+  return s.replace(/״/g,'"').replace(/׳/g,"'").replace(/\s+/g,' ').trim();
+}
+function normalizeMsgText(s) {
+  return s.replace(/״/g,'"').replace(/׳/g,"'").replace(/[^\S\n]+/g,' ').trim();
+}
+function flattenTextField(tf) {
+  if (typeof tf === 'string') return tf;
+  if (Array.isArray(tf)) {
+    return tf.map(item => {
+      if (typeof item === 'string') return item;
+      if (item && typeof item.text === 'string') return item.text;
+      return '';
+    }).join('');
+  }
+  return '';
+}
+function messageFullText(msg) {
+  if (Array.isArray(msg.text_entities) && msg.text_entities.length > 0) {
+    const parts = msg.text_entities.map(e => typeof e.text === 'string' ? e.text : '').join('');
+    if (parts.trim()) return normalizeMsgText(parts);
+  }
+  return normalizeMsgText(flattenTextField(msg.text || ''));
+}
+function isRocketAlert(text) {
+  if (!text.includes(ROCKET_PHRASE)) return false;
+  for (const p of NON_ALERT_PATTERNS) if (text.includes(p)) return false;
+  return true;
+}
+function extractSettlements(text) {
+  const settlements = new Set();
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+  const skipPfx = ['אזור ','היכנסו למרחב המוגן','האירוע הסתיים','השוהים במרחב המוגן'];
+  const skipNamePfx = ['על תושבי','במקרה של','עדכון'];
+
+  for (const ln of lines) {
+    if (ln.includes(ROCKET_PHRASE)) continue;
+    if (skipPfx.some(p => ln.startsWith(p))) continue;
+
+    // Each entry looks like: "Settlement1, Settlement2 (time_marker)"
+    const parts = ln.split(/\)\s*/);
+    for (const part of parts) {
+      if (!part.includes('(')) continue;
+      const lastParen = part.lastIndexOf('(');
+      const left = part.substring(0, lastParen);
+      const right = part.substring(lastParen + 1);
+      if (!TIME_MARKERS.some(tm => right.includes(tm))) continue;
+      for (let name of left.split(',')) {
+        name = normalizeText(name).replace(/^-+\s*/,'').replace(/\s*-\s*$/,'');
+        if (!name) continue;
+        if (skipNamePfx.some(p => name.startsWith(p))) continue;
+        settlements.add(name);
+      }
+    }
+  }
+  return settlements;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// BUILD EVENTS TIMELINE
+// ══════════════════════════════════════════════════════════════════
+function buildEvents(messages, startDt, endDt) {
+  const eventsBySettlement = {};
+  const dedup = new Set();
+
+  for (const msg of messages) {
+    if (msg.type !== 'message') continue;
+    if (!msg.date) continue;
+    const dt = new Date(msg.date);
+    if (isNaN(dt)) continue;
+    if (dt < startDt || dt > endDt) continue;
+
+    const text = messageFullText(msg);
+    if (!text || !isRocketAlert(text)) continue;
+
+    const settlements = extractSettlements(text);
+    if (!settlements.size) continue;
+
+    // Minute bucket for dedup
+    const mb = new Date(dt);
+    mb.setSeconds(0, 0);
+    const mbStr = mb.toISOString();
+
+    for (const s of settlements) {
+      const sk = normKey(s);
+      const key = sk + '|' + mbStr;
+      if (dedup.has(key)) continue;
+      dedup.add(key);
+      if (!eventsBySettlement[sk]) eventsBySettlement[sk] = [];
+      eventsBySettlement[sk].push(dt.getTime()); // store as ms
+    }
+  }
+
+  // Sort each settlement's times
+  for (const sk in eventsBySettlement) {
+    eventsBySettlement[sk].sort((a,b) => a-b);
+  }
+  return eventsBySettlement;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// BINARY SEARCH (like bisect_left)
+// ══════════════════════════════════════════════════════════════════
+function bisectLeft(arr, val) {
+  let lo = 0, hi = arr.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (arr[mid] < val) lo = mid + 1; else hi = mid;
+  }
+  return lo;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// COMPUTE PREDICTOR STATS
+// ══════════════════════════════════════════════════════════════════
+function computePredictorStats(eventsBySettlement, targetKey, minVolume, forceSet) {
+  const targetTimes = eventsBySettlement[targetKey] || [];
+  const targetCount = targetTimes.length;
+  const results = [];
+
+  for (const [settlement, times] of Object.entries(eventsBySettlement)) {
+    if (settlement === targetKey) continue;
+    const total = times.length;
+    if (total < minVolume && !forceSet.has(settlement)) continue;
+
+    const leadList = [];
+    let success = 0;
+
+    for (const t of times) {
+      const lo = t + MIN_LEAD_SEC * 1000;
+      const hi = t + MAX_LEAD_SEC * 1000;
+      const i = bisectLeft(targetTimes, lo);
+      if (i < targetTimes.length && targetTimes[i] <= hi) {
+        success++;
+        leadList.push((targetTimes[i] - t) / 1000);
+      }
+    }
+
+    const precision = total > 0 ? success / total : 0;
+
+    // P(settlement fired | target fired)
+    let hitTargetGivenSett = 0;
+    for (const th of targetTimes) {
+      const lo = th - MAX_LEAD_SEC * 1000;
+      const hi = th - MIN_LEAD_SEC * 1000;
+      const j = bisectLeft(times, lo);
+      if (j < times.length && times[j] <= hi) hitTargetGivenSett++;
+    }
+    const pSettGivenTarget = targetCount > 0 ? hitTargetGivenSett / targetCount : 0;
+
+    const avgLead = leadList.length > 0 ? leadList.reduce((a,b)=>a+b,0)/leadList.length : NaN;
+    const medLead = leadList.length > 0 ? median(leadList) : NaN;
+
+    results.push({
+      settlement, total_events: total, success_count: success,
+      precision, avg_lead_sec: avgLead, med_lead_sec: medLead,
+      p_settlement_given_target: pSettGivenTarget,
+      force_checked: forceSet.has(settlement),
+    });
+  }
+
+  results.sort((a,b) => b.precision - a.precision || b.total_events - a.total_events);
+  return {results, targetCount};
+}
+
+function median(arr) {
+  const s = [...arr].sort((a,b)=>a-b);
+  const m = s.length >> 1;
+  return s.length % 2 === 0 ? (s[m-1]+s[m])/2 : s[m];
+}
+
+// ══════════════════════════════════════════════════════════════════
+// OPERATIONAL SCORE
+// ══════════════════════════════════════════════════════════════════
+function pickTopOperational(rows) {
+  return rows
+    .filter(r => !isNaN(r.avg_lead_sec))
+    .map(r => {
+      const precScore = r.precision;
+      const volScore = Math.min(1, Math.log1p(r.total_events) / Math.log1p(200));
+      const lead = r.avg_lead_sec;
+      const leadScore = Math.exp(-Math.pow(lead - 150, 2) / (2 * Math.pow(90, 2)));
+      const score = 0.55 * precScore + 0.25 * leadScore + 0.20 * volScore;
+      return {...r, operational_score: score};
+    })
+    .sort((a,b) => b.operational_score - a.operational_score);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════════════
+function settlementDisplay(key) {
+  return SETTLEMENT_EN[key] || key;
+}
+function formatLead(sec) {
+  if (isNaN(sec) || sec === null) return '-';
+  const m = Math.floor(sec / 60), s = Math.round(sec % 60);
+  return m === 0 ? `${s} שנ'` : `${m}:${String(s).padStart(2,'0')} דק'`;
+}
+function pct(x) { return Math.round(x * 100) + '%'; }
+
+function tierClass(precision) {
+  if (precision >= 0.65) return 'tier-green';
+  if (precision >= 0.50) return 'tier-lime';
+  if (precision >= 0.30) return 'tier-amber';
+  return 'tier-red';
+}
+function rankClass(i) {
+  if (i <= 3) return 'top';
+  if (i <= 6) return 'mid';
+  return 'low';
+}
+
+function autoPickTarget(eventsBySettlement) {
+  const cands = Object.keys(eventsBySettlement)
+    .filter(k => k.includes('בית') && k.includes('ח'));
+  if (!cands.length) {
+    // broader: any key containing both parts
+    const wider = Object.keys(eventsBySettlement)
+      .filter(k => 'בית חגי'.split(' ').every(w => k.includes(w.substring(0,2))));
+    if (wider.length) return wider.sort((a,b)=>(eventsBySettlement[b].length)-(eventsBySettlement[a].length))[0];
+    return null;
+  }
+  return cands.sort((a,b)=>(eventsBySettlement[b].length)-(eventsBySettlement[a].length))[0];
+}
+
+// ══════════════════════════════════════════════════════════════════
+// UI — FILE LOADING
+// ══════════════════════════════════════════════════════════════════
+function showError(msg) {
+  const el = document.getElementById('error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function hideError() { document.getElementById('error').style.display = 'none'; }
+function showStatus(msg) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function hideStatus() { document.getElementById('status').style.display = 'none'; }
+
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) loadFile(f);
+});
+dropZone.addEventListener('click', e => {
+  if (e.target.tagName !== 'BUTTON') fileInput.click();
+});
+fileInput.addEventListener('change', e => {
+  if (e.target.files[0]) loadFile(e.target.files[0]);
+});
+
+function loadFile(file) {
+  hideError();
+  document.getElementById('fileName').textContent = '📄 ' + file.name;
+  showStatus('טוען...');
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data || !Array.isArray(data.messages)) {
+        showError('קובץ לא תקין — חסר שדה "messages". ודא שזה ייצוא טלגרם תקין.');
+        hideStatus();
+        return;
+      }
+      loadedMessages = data.messages;
+      hideStatus();
+      showStatus(`✅ נטענו ${loadedMessages.length} הודעות`);
+      setTimeout(hideStatus, 2000);
+      buildTargetDropdown();
+      document.getElementById('settings').classList.add('visible');
+    } catch(err) {
+      showError('שגיאה בקריאת הקובץ: ' + err.message);
+      hideStatus();
+    }
+  };
+  reader.readAsText(file, 'utf-8');
+}
+
+function buildTargetDropdown() {
+  const startDt = new Date(document.getElementById('startDate').value + 'T00:00:00');
+  const endDt = new Date();
+  const events = buildEvents(loadedMessages, startDt, endDt);
+  const sel = document.getElementById('targetSelect');
+  sel.innerHTML = '';
+
+  // Auto-detect Beit Hagai
+  const auto = autoPickTarget(events);
+
+  // Sort by count descending
+  const sorted = Object.entries(events)
+    .map(([k,v]) => ({key:k, count:v.length}))
+    .sort((a,b) => b.count - a.count);
+
+  for (const {key, count} of sorted) {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = `${key} (${count} אזעקות)`;
+    if (key === auto) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// UI — RANGE PILLS
+// ══════════════════════════════════════════════════════════════════
+function setRange(n) {
+  selectedRange = n;
+  document.querySelectorAll('.range-pill').forEach(el => {
+    el.classList.toggle('active', parseInt(el.dataset.range) === n);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MAIN ANALYSIS
+// ══════════════════════════════════════════════════════════════════
+function runAnalysis() {
+  if (!loadedMessages) { showError('טען קובץ קודם.'); return; }
+  hideError();
+
+  const targetKey = document.getElementById('targetSelect').value;
+  const minVol = parseInt(document.getElementById('minVolume').value) || 1;
+  const startStr = document.getElementById('startDate').value || DEFAULT_START;
+  const endStr = document.getElementById('endDate').value;
+  const startDt = new Date(startStr + 'T00:00:00');
+  const endDt = endStr ? new Date(endStr + 'T23:59:59') : new Date();
+
+  if (!targetKey) { showError('בחר יישוב יעד.'); return; }
+
+  showStatus('מנתח...');
+  document.getElementById('analyzeBtn').disabled = true;
+
+  // Defer to let UI update
+  setTimeout(() => {
+    try {
+      const events = buildEvents(loadedMessages, startDt, endDt);
+
+      if (!events[targetKey]) {
+        showError(`לא נמצאו אזעקות לביישוב "${targetKey}" בטווח התאריכים שנבחר.`);
+        hideStatus();
+        document.getElementById('analyzeBtn').disabled = false;
+        return;
+      }
+
+      // Build force set
+      const forceSet = new Set(GEO_PRIORITY.map(normKey));
+      if (selectedRange > 0) {
+        for (const n of NAMED_RANGES[selectedRange]) forceSet.add(normKey(n));
+      }
+
+      // When range is selected, limit to only range settlements
+      let filteredEvents = events;
+      if (selectedRange > 0) {
+        const rangeKeys = new Set(NAMED_RANGES[selectedRange].map(normKey));
+        rangeKeys.add(normKey(targetKey));
+        filteredEvents = Object.fromEntries(
+          Object.entries(events).filter(([k]) => rangeKeys.has(k) || k === normKey(targetKey))
+        );
+        // Make sure target is in filteredEvents
+        if (!filteredEvents[normKey(targetKey)] && events[normKey(targetKey)]) {
+          filteredEvents[normKey(targetKey)] = events[normKey(targetKey)];
+        }
+        // Use full events but restrict what gets shown
+        filteredEvents = events; // keep all data, forceSet & minVol filters will handle it
+      }
+
+      const {results, targetCount} = computePredictorStats(
+        filteredEvents, targetKey, selectedRange > 0 ? 1 : minVol, forceSet
+      );
+
+      // If range selected, keep only range settlements + their force-checked status
+      let displayResults = results;
+      if (selectedRange > 0) {
+        const rangeKeys = new Set(NAMED_RANGES[selectedRange].map(normKey));
+        displayResults = results.filter(r => rangeKeys.has(normKey(r.settlement)));
+      }
+
+      const opRanked = pickTopOperational(displayResults);
+
+      renderResults(targetKey, targetCount, startDt, endDt, displayResults, opRanked, minVol);
+      hideStatus();
+    } catch(err) {
+      showError('שגיאה בניתוח: ' + err.message);
+      hideStatus();
+    }
+    document.getElementById('analyzeBtn').disabled = false;
+  }, 50);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// RENDERING
+// ══════════════════════════════════════════════════════════════════
+function renderResults(targetKey, targetCount, startDt, endDt, results, opRanked, minVol) {
+  const targetName = settlementDisplay(targetKey);
+  const dateRange = startDt.toLocaleDateString('he-IL') + ' – ' + endDt.toLocaleDateString('he-IL');
+
+  // Summary
+  const summaryEl = document.getElementById('summary');
+  summaryEl.innerHTML =
+    `🎯 יעד: <strong>${targetKey} (${targetName})</strong> &nbsp;|&nbsp; ` +
+    `${targetCount} אזעקות &nbsp;|&nbsp; ` +
+    `תקופה: <strong>${dateRange}</strong> &nbsp;|&nbsp; ` +
+    `${results.length} יישובים מנבאים`;
+  summaryEl.style.display = 'block';
+
+  // Cards
+  const cardsEl = document.getElementById('cards');
+  cardsEl.innerHTML = '';
+
+  if (results.length === 0) {
+    cardsEl.innerHTML = '<div class="no-data">לא נמצאו יישובים מנבאים בתנאים אלה.<br>נסה להוריד את ספף "מינימום אזעקות" או לשנות את טווח התאריכים.</div>';
+    document.getElementById('results').style.display = 'block';
+    document.getElementById('resultsLabel').textContent = '';
+    return;
+  }
+
+  // Top operational triggers first (sorted by operational_score),
+  // then remaining sorted by precision
+  const opKeys = new Set(opRanked.map(r => r.settlement));
+  const opSection = opRanked;
+  const precSection = results.filter(r => !opKeys.has(r.settlement));
+
+  if (opSection.length > 0) {
+    cardsEl.appendChild(makeSectionHeader('⚡ המנבאים המועילים ביותר (ניקוד משולב)'));
+    opSection.forEach((r, i) => cardsEl.appendChild(makeCard(r, i+1, targetKey, targetName)));
+  }
+
+  if (precSection.length > 0) {
+    cardsEl.appendChild(makeSectionHeader('📊 שאר המנבאים (לפי דיוק)'));
+    precSection.forEach((r, i) => cardsEl.appendChild(makeCard(r, i+1, targetKey, targetName)));
+  }
+
+  document.getElementById('resultsLabel').textContent =
+    `נמצאו ${results.length} יישובים מנבאים · מסודרים לפי שימושיות תפעולית`;
+  document.getElementById('results').style.display = 'block';
+
+  // Animate lead bars
+  requestAnimationFrame(() => {
+    document.querySelectorAll('.lead-bar[data-w]').forEach(el => {
+      el.style.width = el.dataset.w + '%';
+    });
+  });
+}
+
+function makeSectionHeader(text) {
+  const el = document.createElement('div');
+  el.style.cssText = 'padding:6px 0 4px;font-size:.78rem;color:#5f8baa;text-transform:uppercase;letter-spacing:.5px';
+  el.textContent = text;
+  return el;
+}
+
+function makeCard(r, rank, targetKey, targetName) {
+  const tier = tierClass(r.precision);
+  const precPct = Math.round(r.precision * 100);
+  const sName = r.settlement;
+  const sDisplay = settlementDisplay(sName);
+  const isForce = r.force_checked;
+
+  const barW = isNaN(r.avg_lead_sec) ? 0 : Math.min(100, Math.round(r.avg_lead_sec / MAX_LEAD_SEC * 100));
+
+  // Decision sentence
+  let decisionHtml;
+  if (r.success_count === 0 || isNaN(r.avg_lead_sec)) {
+    decisionHtml = `כאשר הייתה אזעקה ב<strong>${sName}</strong> — לא הייתה אזעקה ב${targetKey} בתוך ${MAX_LEAD_SEC/60} דקות.`;
+  } else {
+    decisionHtml = `אם יש אזעקה ב<strong>${sName}</strong> → סיכוי של <strong>${precPct}%</strong> לאזעקה ב${targetKey} בתוך 10 דקות.`;
+  }
+
+  const div = document.createElement('div');
+  div.className = `card ${tier}${isForce ? ' force-card' : ''}`;
+  div.innerHTML = `
+    <div class="rank ${rankClass(rank)}">${rank}</div>
+    <div class="prob-circle">
+      <span class="pct">${precPct}%</span>
+      <span class="lbl">דיוק</span>
+    </div>
+    <div class="card-body">
+      <div class="settlement-name">
+        ${sName}
+        ${sName !== sDisplay ? `<span style="color:#5f8baa;font-size:.8rem;font-weight:400">(${sDisplay})</span>` : ''}
+        ${isForce ? '<span class="force-badge">★ עדיפות</span>' : ''}
+      </div>
+      <div class="decision-text">${decisionHtml}</div>
+      <div class="mini-stats">
+        <div class="stat"><span>אזעקות</span><span class="val">${r.total_events}</span></div>
+        <div class="stat"><span>הצלחות</span><span class="val">${r.success_count}/${r.total_events}</span></div>
+        <div class="stat"><span>זמן הקדמה ממוצע</span><span class="val">${formatLead(r.avg_lead_sec)}</span></div>
+        <div class="stat"><span>זמן הקדמה חציוני</span><span class="val">${formatLead(r.med_lead_sec)}</span></div>
+        <div class="stat"><span>P(יישוב|יעד)</span><span class="val">${pct(r.p_settlement_given_target)}</span></div>
+        ${r.operational_score !== undefined ? `<div class="stat"><span>ניקוד תפעולי</span><span class="val">${r.operational_score.toFixed(3)}</span></div>` : ''}
+      </div>
+      <div class="lead-bar-wrap">
+        <div class="lead-bar" data-w="${barW}" style="width:0%"></div>
+      </div>
+    </div>`;
+  return div;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Init
+// ══════════════════════════════════════════════════════════════════
+document.getElementById('startDate').value = DEFAULT_START;
+</script>
+</body>
+</html>

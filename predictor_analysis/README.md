@@ -1,17 +1,28 @@
 # Predictor Analysis — Rocket Alert Settlement Data  (v2.3)
 
 This tool reads a Telegram channel export (`result_filtered.json`) containing
-Hebrew rocket-alert messages and produces two tables:
-
-1. **Top N predictors by precision** — settlements whose alert most reliably
-   precedes an alert for the target settlement within a 15–600 second window.
-2. **Top K operational triggers** — a weighted score combining precision,
-   lead-time quality, and volume.
-
-The HTML output (`--html`) also adds a **Decision sentence** column to Table 1,
-e.g. *"If alarm at Lehavim → ~59% chance of alarm at Beit Hagai within 10 min."*
+Hebrew rocket-alert messages and finds which settlements are the best predictors
+for a target settlement.
 
 ---
+
+## 🌐 Easiest Option: Browser Tool (no installation required)
+
+**`predictor_browser.html`** — a single self-contained HTML file that runs entirely
+in your browser. No Python, no command line, no internet connection needed after
+downloading the file.
+
+1. Download `predictor_browser.html` from this folder to the same directory as your `result_filtered.json`
+2. Double-click `predictor_browser.html` to open it in your browser
+3. Drag your `result_filtered.json` onto the drop zone (or click "בחר קובץ")
+4. Click **"🔍 נתח עכשיו"** — results appear as color-coded cards with plain-Hebrew decision sentences
+
+---
+
+## 🐍 Python CLI Tool (advanced)
+
+For plain-text, CSV-style output, or scripted/automated use, the Python script
+`analyze_predictors_en_safe.py` provides full control via command-line flags.
 
 ## ⚠️ Make Sure You Have the Latest Version
 
