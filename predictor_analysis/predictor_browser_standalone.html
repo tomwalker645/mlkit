@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ניתוח מנבאי אזעקות 🎯 (קובץ עצמאי)</title>
+<style>
+/* ── reset & base ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:'Segoe UI',Arial,sans-serif;
+  background:#0f1923;
+  color:#e8edf2;
+  min-height:100vh;
+  padding:16px;
+}
+
+/* ── layout ── */
+.page{max-width:900px;margin:0 auto}
+
+/* ── header ── */
+.app-header{
+  background:linear-gradient(135deg,#0d3b6e 0%,#1565a0 100%);
+  border-radius:14px;
+  padding:20px 24px 16px;
+  margin-bottom:16px;
+  border:1px solid #1e4d7a;
+}
+.app-header h1{font-size:1.4rem;font-weight:700;letter-spacing:.3px;color:#fff}
+.app-header .sub{font-size:.82rem;color:#90b8d8;margin-top:4px}
+
+/* ── drop zone ── */
+#dropZone{
+  border:2.5px dashed #2e6da4;
+  border-radius:14px;
+  padding:36px 20px;
+  text-align:center;
+  cursor:pointer;
+  background:#131f2e;
+  transition:all .2s;
+  margin-bottom:16px;
+}
+#dropZone.drag-over{border-color:#4fc3f7;background:#1a2e40}
+#dropZone h2{font-size:1.1rem;color:#90b8d8;margin-bottom:8px}
+#dropZone p{font-size:.85rem;color:#5f8baa}
+#dropZone .file-name{color:#4fc3f7;font-weight:600;font-size:.9rem;margin-top:10px}
+#fileInput{display:none}
+.pick-btn{
+  display:inline-block;
+  margin-top:12px;
+  background:#1565a0;
+  color:#fff;
+  border:none;
+  border-radius:8px;
+  padding:9px 20px;
+  font-size:.9rem;
+  cursor:pointer;
+  font-family:inherit;
+}
+.pick-btn:hover{background:#1976d2}
+
+/* ── settings panel ── */
+.settings{
+  background:#131f2e;
+  border:1px solid #1e3a52;
+  border-radius:12px;
+  padding:16px;
+  margin-bottom:16px;
+  display:none;
+}
+.settings.visible{display:block}
+.settings h3{font-size:.9rem;color:#90b8d8;margin-bottom:12px;font-weight:600}
+/* ── utility ── */
+.hidden{display:none}
+.settings-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px 16px;
+}
+@media(max-width:480px){.settings-grid{grid-template-columns:1fr}}
+.field label{display:block;font-size:.78rem;color:#6b98b8;margin-bottom:4px}
+.field input,.field select{
+  width:100%;
+  background:#1c2d3f;
+  border:1px solid #2e4d6a;
+  color:#e8edf2;
+  border-radius:7px;
+  padding:7px 10px;
+  font-size:.88rem;
+  font-family:inherit;
+}
+.field input:focus,.field select:focus{outline:none;border-color:#4fc3f7}
+
+/* Range toggle */
+.range-pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.range-pill{
+  background:#1c2d3f;
+  border:1px solid #2e4d6a;
+  color:#90b8d8;
+  border-radius:20px;
+  padding:5px 14px;
+  font-size:.82rem;
+  cursor:pointer;
+  transition:all .15s;
+  font-family:inherit;
+}
+.range-pill.active{background:#1565a0;border-color:#4fc3f7;color:#fff}
+
+.analyze-btn{
+  display:block;
+  width:100%;
+  margin-top:14px;
+  background:linear-gradient(135deg,#1565a0,#0d47a1);
+  color:#fff;
+  border:none;
+  border-radius:9px;
+  padding:12px;
+  font-size:1rem;
+  font-weight:700;
+  cursor:pointer;
+  font-family:inherit;
+  transition:opacity .2s;
+}
+.analyze-btn:hover{opacity:.9}
+.analyze-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── status / error ── */
+#status{
+  text-align:center;
+  padding:10px;
+  font-size:.88rem;
+  color:#90b8d8;
+  display:none;
+}
+#error{
+  background:#3d1515;
+  border:1px solid #7b2020;
+  color:#f87171;
+  border-radius:10px;
+  padding:12px 16px;
+  font-size:.88rem;
+  margin-bottom:14px;
+  display:none;
+}
+
+/* ── summary bar ── */
+#summary{
+  background:#131f2e;
+  border:1px solid #1e3a52;
+  border-radius:10px;
+  padding:12px 16px;
+  margin-bottom:16px;
+  font-size:.84rem;
+  color:#90b8d8;
+  display:none;
+}
+#summary strong{color:#4fc3f7}
+
+/* ── results grid ── */
+#results{display:none}
+.results-label{
+  font-size:.8rem;
+  color:#5f8baa;
+  text-transform:uppercase;
+  letter-spacing:.5px;
+  margin-bottom:10px;
+  padding-right:4px;
+}
+.cards{display:flex;flex-direction:column;gap:12px}
+
+/* ── predictor card ── */
+.card{
+  background:#131f2e;
+  border:1px solid #1e3a52;
+  border-radius:12px;
+  padding:16px;
+  display:flex;
+  align-items:flex-start;
+  gap:14px;
+  position:relative;
+  overflow:hidden;
+  transition:transform .1s;
+}
+.card:hover{transform:translateX(-3px)}
+.card.force-card{border-color:#f57f17;border-width:1.5px}
+
+/* rank badge */
+.rank{
+  flex-shrink:0;
+  width:34px;
+  height:34px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:.85rem;
+  font-weight:700;
+  color:#fff;
+}
+.rank.top{background:#1565a0}
+.rank.mid{background:#1a3a52}
+.rank.low{background:#1f2a36}
+
+/* big probability circle */
+.prob-circle{
+  flex-shrink:0;
+  width:70px;
+  height:70px;
+  border-radius:50%;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  font-weight:700;
+}
+.prob-circle .pct{font-size:1.2rem;line-height:1}
+.prob-circle .lbl{font-size:.62rem;opacity:.8;margin-top:2px}
+
+/* color tiers */
+.tier-green .prob-circle{background:#1b5e20;color:#a5d6a7;border:2px solid #388e3c}
+.tier-lime  .prob-circle{background:#33691e;color:#c5e1a5;border:2px solid #689f38}
+.tier-amber .prob-circle{background:#e65100;color:#ffe0b2;border:2px solid #f57c00}
+.tier-red   .prob-circle{background:#b71c1c;color:#ffcdd2;border:2px solid #c62828}
+
+/* card body */
+.card-body{flex:1;min-width:0}
+.settlement-name{
+  font-size:1.05rem;
+  font-weight:700;
+  color:#e8edf2;
+  margin-bottom:5px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.force-badge{
+  font-size:.65rem;
+  background:#f57f17;
+  color:#fff;
+  border-radius:4px;
+  padding:1px 5px;
+}
+.decision-text{
+  font-size:.92rem;
+  color:#b0d0e8;
+  margin-bottom:8px;
+  line-height:1.4;
+}
+.decision-text strong{color:#fff}
+
+/* mini stats */
+.mini-stats{display:flex;gap:12px;flex-wrap:wrap}
+.stat{
+  font-size:.75rem;
+  color:#5f8baa;
+  display:flex;
+  flex-direction:column;
+}
+.stat .val{color:#90b8d8;font-weight:600;font-size:.8rem}
+
+/* lead bar */
+.lead-bar-wrap{
+  height:4px;
+  background:#1c2d3f;
+  border-radius:2px;
+  margin-top:8px;
+  overflow:hidden;
+}
+.lead-bar{height:4px;background:#1565a0;border-radius:2px;transition:width .4s}
+
+/* ── no-data / empty ── */
+.no-data{
+  text-align:center;
+  padding:30px;
+  color:#5f8baa;
+  font-size:.9rem;
+}
+
+/* ── footer ── */
+.footer{
+  text-align:center;
+  font-size:.72rem;
+  color:#3a5a72;
+  margin-top:20px;
+  padding-bottom:16px;
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ── Header ── -->
+<div class="app-header">
+  <h1>🎯 ניתוח מנבאי אזעקות</h1>
+  <div class="sub">הנתונים מוטמעים בקובץ · הכל רץ בדפדפן · אין צורך ב-Python, חיבור לאינטרנט, או קובץ נוסף</div>
+</div>
+
+<!-- ── Drop Zone ── -->
+<div id="dropZone" class="hidden">
+  <h2>📂 גרור לכאן את קובץ result_filtered.json</h2>
+  <p>או לחץ לבחירת קובץ מהמחשב</p>
+  <div class="file-name" id="fileName"></div>
+  <button class="pick-btn" onclick="document.getElementById('fileInput').click()">בחר קובץ</button>
+  <input type="file" id="fileInput" accept=".json">
+</div>
+
+<!-- ── Settings ── -->
+<div class="settings" id="settings">
+  <h3>⚙️ הגדרות</h3>
+  <div class="settings-grid">
+    <div class="field">
+      <label>יישוב יעד</label>
+      <select id="targetSelect"></select>
+    </div>
+    <div class="field">
+      <label>מינימום אזעקות ליישוב</label>
+      <input type="number" id="minVolume" value="1" min="1" max="999">
+    </div>
+    <div class="field">
+      <label>תאריך התחלה</label>
+      <input type="date" id="startDate" value="2026-02-28">
+    </div>
+    <div class="field">
+      <label>תאריך סיום (ריק = עכשיו)</label>
+      <input type="date" id="endDate">
+    </div>
+  </div>
+
+  <div style="margin-top:12px">
+    <label style="font-size:.78rem;color:#6b98b8;display:block;margin-bottom:6px">סינון לפי טווח גיאוגרפי</label>
+    <div class="range-pills">
+      <button class="range-pill active" data-range="0" onclick="setRange(0)">הכל</button>
+      <button class="range-pill" data-range="1" onclick="setRange(1)">טווח 1 — קרוב (להבים, סנסנה…)</button>
+      <button class="range-pill" data-range="2" onclick="setRange(2)">טווח 2 — בינוני (אשתמוע, מעון…)</button>
+    </div>
+  </div>
+
+  <button class="analyze-btn" id="analyzeBtn" onclick="runAnalysis()">🔍 נתח עכשיו</button>
+</div>
+
+<!-- ── Error / Status ── -->
+<div id="error"></div>
+<div id="status"></div>
+
+<!-- ── Summary ── -->
+<div id="summary"></div>
+
+<!-- ── Results ── -->
+<div id="results">
+  <div class="results-label" id="resultsLabel"></div>
+  <div class="cards" id="cards"></div>
+</div>
+
+<div class="footer">רץ לחלוטין בדפדפן — הנתונים שלך לא עוזבים את המחשב</div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+// CONSTANTS (ported from analyze_predictors_en_safe.py)
+// ══════════════════════════════════════════════════════════════════
+const ROCKET_PHRASE = 'ירי רקטות וטילים';
+const NON_ALERT_PATTERNS = ['מבזק', 'הישמעו להנחיות', 'בדקות הקרובות צפויות להתקבל התרעות'];
+const TIME_MARKERS = ['מיידי','15 שניות','30 שניות','45 שניות','דקה','דקה וחצי','2 דקות','3 דקות'];
+const MIN_LEAD_SEC = 15;
+const MAX_LEAD_SEC = 600;
+const DEFAULT_START = '2026-02-28';
+
+const GEO_PRIORITY = ['להב','להבים','תנא עומרים','מעון','סנסנה','שמעה'];
+const RANGE_1 = ['להבים','סנסנה','גבעות בר','אתר דודאים','עומר'];
+const RANGE_2 = ['אשתמוע','כרמל','מעון','שמעה','להב','תנא עומרים'];
+const NAMED_RANGES = {1: RANGE_1, 2: RANGE_2};
+
+// Hebrew → English settlement display map
+const SETTLEMENT_EN = {
+  'אשקלון':'Ashkelon','אשדוד':'Ashdod','שדרות':'Sderot','נתיבות':'Netivot',
+  'אופקים':'Ofakim','קריית ארבע':'Kiryat Arba','קריית גת':'Kiryat Gat',
+  'קריית מלאכי':'Kiryat Malachi','לכיש':'Lachish','גן יבנה':'Gan Yavne',
+  'יבנה':'Yavne','גדרה':'Gedera','רחובות':'Rehovot','ראשון לציון':'Rishon LeZion',
+  'בית חגי':'Beit Hagai','קריית גת':'Kiryat Gat','להב':'Lahav','להבים':'Lehavim',
+  'תנא עומרים':'Tene Omarim','מעון':'Ma\'on','סנסנה':'Sansana','שמעה':'Shema',
+  'אשתמוע':'Eshtemoa','כרמל':'Carmel','גבעות בר':'Giv\'ot Bar','עומר':'Omer',
+  'באר שבע':'Beer Sheva','דימונה':'Dimona','ערד':'Arad','רהט':'Rahat',
+  'ירושלים':'Jerusalem','חברון':'Hebron','בית לחם':'Bethlehem',
+  'קריית שמונה':'Kiryat Shmona','חיפה':'Haifa','נתניה':'Netanya',
+  'תל אביב':'Tel Aviv','פתח תקווה':'Petah Tikva','ראש העין':'Rosh HaAyin',
+};
+
+// ══════════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════════
+let loadedMessages = null;
+let selectedRange = 0;
+
+// ══════════════════════════════════════════════════════════════════
+// TEXT PROCESSING
+// ══════════════════════════════════════════════════════════════════
+function normKey(s) {
+  return s.replace(/[״׳'"]/g,'').replace(/\s+/g,' ').trim();
+}
+function normalizeText(s) {
+  return s.replace(/״/g,'"').replace(/׳/g,"'").replace(/\s+/g,' ').trim();
+}
+function normalizeMsgText(s) {
+  return s.replace(/״/g,'"').replace(/׳/g,"'").replace(/[^\S\n]+/g,' ').trim();
+}
+function flattenTextField(tf) {
+  if (typeof tf === 'string') return tf;
+  if (Array.isArray(tf)) {
+    return tf.map(item => {
+      if (typeof item === 'string') return item;
+      if (item && typeof item.text === 'string') return item.text;
+      return '';
+    }).join('');
+  }
+  return '';
+}
+function messageFullText(msg) {
+  if (Array.isArray(msg.text_entities) && msg.text_entities.length > 0) {
+    const parts = msg.text_entities.map(e => typeof e.text === 'string' ? e.text : '').join('');
+    if (parts.trim()) return normalizeMsgText(parts);
+  }
+  return normalizeMsgText(flattenTextField(msg.text || ''));
+}
+function isRocketAlert(text) {
+  if (!text.includes(ROCKET_PHRASE)) return false;
+  for (const p of NON_ALERT_PATTERNS) if (text.includes(p)) return false;
+  return true;
+}
+function extractSettlements(text) {
+  const settlements = new Set();
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+  const skipPfx = ['אזור ','היכנסו למרחב המוגן','האירוע הסתיים','השוהים במרחב המוגן'];
+  const skipNamePfx = ['על תושבי','במקרה של','עדכון'];
+
+  for (const ln of lines) {
+    if (ln.includes(ROCKET_PHRASE)) continue;
+    if (skipPfx.some(p => ln.startsWith(p))) continue;
+
+    // Each entry looks like: "Settlement1, Settlement2 (time_marker)"
+    const parts = ln.split(/\)\s*/);
+    for (const part of parts) {
+      if (!part.includes('(')) continue;
+      const lastParen = part.lastIndexOf('(');
+      const left = part.substring(0, lastParen);
+      const right = part.substring(lastParen + 1);
+      if (!TIME_MARKERS.some(tm => right.includes(tm))) continue;
+      for (let name of left.split(',')) {
+        name = normalizeText(name).replace(/^-+\s*/,'').replace(/\s*-\s*$/,'');
+        if (!name) continue;
+        if (skipNamePfx.some(p => name.startsWith(p))) continue;
+        settlements.add(name);
+      }
+    }
+  }
+  return settlements;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// BUILD EVENTS TIMELINE
+// ══════════════════════════════════════════════════════════════════
+function buildEvents(messages, startDt, endDt) {
+  const eventsBySettlement = {};
+  const dedup = new Set();
+
+  for (const msg of messages) {
+    if (msg.type !== 'message') continue;
+    if (!msg.date) continue;
+    const dt = new Date(msg.date);
+    if (isNaN(dt)) continue;
+    if (dt < startDt || dt > endDt) continue;
+
+    const text = messageFullText(msg);
+    if (!text || !isRocketAlert(text)) continue;
+
+    const settlements = extractSettlements(text);
+    if (!settlements.size) continue;
+
+    // Minute bucket for dedup
+    const mb = new Date(dt);
+    mb.setSeconds(0, 0);
+    const mbStr = mb.toISOString();
+
+    for (const s of settlements) {
+      const sk = normKey(s);
+      const key = sk + '|' + mbStr;
+      if (dedup.has(key)) continue;
+      dedup.add(key);
+      if (!eventsBySettlement[sk]) eventsBySettlement[sk] = [];
+      eventsBySettlement[sk].push(dt.getTime()); // store as ms
+    }
+  }
+
+  // Sort each settlement's times
+  for (const sk in eventsBySettlement) {
+    eventsBySettlement[sk].sort((a,b) => a-b);
+  }
+  return eventsBySettlement;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// BINARY SEARCH (like bisect_left)
+// ══════════════════════════════════════════════════════════════════
+function bisectLeft(arr, val) {
+  let lo = 0, hi = arr.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (arr[mid] < val) lo = mid + 1; else hi = mid;
+  }
+  return lo;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// COMPUTE PREDICTOR STATS
+// ══════════════════════════════════════════════════════════════════
+function computePredictorStats(eventsBySettlement, targetKey, minVolume, forceSet) {
+  const targetTimes = eventsBySettlement[targetKey] || [];
+  const targetCount = targetTimes.length;
+  const results = [];
+
+  for (const [settlement, times] of Object.entries(eventsBySettlement)) {
+    if (settlement === targetKey) continue;
+    const total = times.length;
+    if (total < minVolume && !forceSet.has(settlement)) continue;
+
+    const leadList = [];
+    let success = 0;
+
+    for (const t of times) {
+      const lo = t + MIN_LEAD_SEC * 1000;
+      const hi = t + MAX_LEAD_SEC * 1000;
+      const i = bisectLeft(targetTimes, lo);
+      if (i < targetTimes.length && targetTimes[i] <= hi) {
+        success++;
+        leadList.push((targetTimes[i] - t) / 1000);
+      }
+    }
+
+    const precision = total > 0 ? success / total : 0;
+
+    // P(settlement fired | target fired)
+    let hitTargetGivenSett = 0;
+    for (const th of targetTimes) {
+      const lo = th - MAX_LEAD_SEC * 1000;
+      const hi = th - MIN_LEAD_SEC * 1000;
+      const j = bisectLeft(times, lo);
+      if (j < times.length && times[j] <= hi) hitTargetGivenSett++;
+    }
+    const pSettGivenTarget = targetCount > 0 ? hitTargetGivenSett / targetCount : 0;
+
+    const avgLead = leadList.length > 0 ? leadList.reduce((a,b)=>a+b,0)/leadList.length : NaN;
+    const medLead = leadList.length > 0 ? median(leadList) : NaN;
+
+    results.push({
+      settlement, total_events: total, success_count: success,
+      precision, avg_lead_sec: avgLead, med_lead_sec: medLead,
+      p_settlement_given_target: pSettGivenTarget,
+      force_checked: forceSet.has(settlement),
+    });
+  }
+
+  results.sort((a,b) => b.precision - a.precision || b.total_events - a.total_events);
+  return {results, targetCount};
+}
+
+function median(arr) {
+  const s = [...arr].sort((a,b)=>a-b);
+  const m = s.length >> 1;
+  return s.length % 2 === 0 ? (s[m-1]+s[m])/2 : s[m];
+}
+
+// ══════════════════════════════════════════════════════════════════
+// OPERATIONAL SCORE
+// ══════════════════════════════════════════════════════════════════
+function pickTopOperational(rows) {
+  return rows
+    .filter(r => !isNaN(r.avg_lead_sec))
+    .map(r => {
+      const precScore = r.precision;
+      const volScore = Math.min(1, Math.log1p(r.total_events) / Math.log1p(200));
+      const lead = r.avg_lead_sec;
+      const leadScore = Math.exp(-Math.pow(lead - 150, 2) / (2 * Math.pow(90, 2)));
+      const score = 0.55 * precScore + 0.25 * leadScore + 0.20 * volScore;
+      return {...r, operational_score: score};
+    })
+    .sort((a,b) => b.operational_score - a.operational_score);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════════════
+function settlementDisplay(key) {
+  return SETTLEMENT_EN[key] || key;
+}
+function formatLead(sec) {
+  if (isNaN(sec) || sec === null) return '-';
+  const m = Math.floor(sec / 60), s = Math.round(sec % 60);
+  return m === 0 ? `${s} שנ'` : `${m}:${String(s).padStart(2,'0')} דק'`;
+}
+function pct(x) { return Math.round(x * 100) + '%'; }
+
+function tierClass(precision) {
+  if (precision >= 0.65) return 'tier-green';
+  if (precision >= 0.50) return 'tier-lime';
+  if (precision >= 0.30) return 'tier-amber';
+  return 'tier-red';
+}
+function rankClass(i) {
+  if (i <= 3) return 'top';
+  if (i <= 6) return 'mid';
+  return 'low';
+}
+
+function autoPickTarget(eventsBySettlement) {
+  const cands = Object.keys(eventsBySettlement)
+    .filter(k => k.includes('בית') && k.includes('ח'));
+  if (!cands.length) {
+    // broader: any key containing both parts
+    const wider = Object.keys(eventsBySettlement)
+      .filter(k => 'בית חגי'.split(' ').every(w => k.includes(w.substring(0,2))));
+    if (wider.length) return wider.sort((a,b)=>(eventsBySettlement[b].length)-(eventsBySettlement[a].length))[0];
+    return null;
+  }
+  return cands.sort((a,b)=>(eventsBySettlement[b].length)-(eventsBySettlement[a].length))[0];
+}
+
+// ══════════════════════════════════════════════════════════════════
+// UI — FILE LOADING
+// ══════════════════════════════════════════════════════════════════
+function showError(msg) {
+  const el = document.getElementById('error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function hideError() { document.getElementById('error').style.display = 'none'; }
+function showStatus(msg) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function hideStatus() { document.getElementById('status').style.display = 'none'; }
+
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) loadFile(f);
+});
+dropZone.addEventListener('click', e => {
+  if (e.target.tagName !== 'BUTTON') fileInput.click();
+});
+fileInput.addEventListener('change', e => {
+  if (e.target.files[0]) loadFile(e.target.files[0]);
+});
+
+function loadFile(file) {
+  hideError();
+  document.getElementById('fileName').textContent = '📄 ' + file.name;
+  showStatus('טוען...');
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data || !Array.isArray(data.messages)) {
+        showError('קובץ לא תקין — חסר שדה "messages". ודא שזה ייצוא טלגרם תקין.');
+        hideStatus();
+        return;
+      }
+      loadedMessages = data.messages;
+      hideStatus();
+      showStatus(`✅ נטענו ${loadedMessages.length} הודעות`);
+      setTimeout(hideStatus, 2000);
+      buildTargetDropdown();
+      document.getElementById('settings').classList.add('visible');
+    } catch(err) {
+      showError('שגיאה בקריאת הקובץ: ' + err.message);
+      hideStatus();
+    }
+  };
+  reader.readAsText(file, 'utf-8');
+}
+
+function buildTargetDropdown() {
+  const startDt = new Date(document.getElementById('startDate').value + 'T00:00:00');
+  const endDt = new Date();
+  const events = buildEvents(loadedMessages, startDt, endDt);
+  const sel = document.getElementById('targetSelect');
+  sel.innerHTML = '';
+
+  // Auto-detect Beit Hagai
+  const auto = autoPickTarget(events);
+
+  // Sort by count descending
+  const sorted = Object.entries(events)
+    .map(([k,v]) => ({key:k, count:v.length}))
+    .sort((a,b) => b.count - a.count);
+
+  for (const {key, count} of sorted) {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = `${key} (${count} אזעקות)`;
+    if (key === auto) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// UI — RANGE PILLS
+// ══════════════════════════════════════════════════════════════════
+function setRange(n) {
+  selectedRange = n;
+  document.querySelectorAll('.range-pill').forEach(el => {
+    el.classList.toggle('active', parseInt(el.dataset.range) === n);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MAIN ANALYSIS
+// ══════════════════════════════════════════════════════════════════
+function runAnalysis() {
+  if (!loadedMessages) { showError('טען קובץ קודם.'); return; }
+  hideError();
+
+  const targetKey = document.getElementById('targetSelect').value;
+  const minVol = parseInt(document.getElementById('minVolume').value) || 1;
+  const startStr = document.getElementById('startDate').value || DEFAULT_START;
+  const endStr = document.getElementById('endDate').value;
+  const startDt = new Date(startStr + 'T00:00:00');
+  const endDt = endStr ? new Date(endStr + 'T23:59:59') : new Date();
+
+  if (!targetKey) { showError('בחר יישוב יעד.'); return; }
+
+  showStatus('מנתח...');
+  document.getElementById('analyzeBtn').disabled = true;
+
+  // Defer to let UI update
+  setTimeout(() => {
+    try {
+      const events = buildEvents(loadedMessages, startDt, endDt);
+
+      if (!events[targetKey]) {
+        showError(`לא נמצאו אזעקות לביישוב "${targetKey}" בטווח התאריכים שנבחר.`);
+        hideStatus();
+        document.getElementById('analyzeBtn').disabled = false;
+        return;
+      }
+
+      // Build force set
+      const forceSet = new Set(GEO_PRIORITY.map(normKey));
+      if (selectedRange > 0) {
+        for (const n of NAMED_RANGES[selectedRange]) forceSet.add(normKey(n));
+      }
+
+      // When range is selected, limit to only range settlements
+      let filteredEvents = events;
+      if (selectedRange > 0) {
+        const rangeKeys = new Set(NAMED_RANGES[selectedRange].map(normKey));
+        rangeKeys.add(normKey(targetKey));
+        filteredEvents = Object.fromEntries(
+          Object.entries(events).filter(([k]) => rangeKeys.has(k) || k === normKey(targetKey))
+        );
+        // Make sure target is in filteredEvents
+        if (!filteredEvents[normKey(targetKey)] && events[normKey(targetKey)]) {
+          filteredEvents[normKey(targetKey)] = events[normKey(targetKey)];
+        }
+        // Use full events but restrict what gets shown
+        filteredEvents = events; // keep all data, forceSet & minVol filters will handle it
+      }
+
+      const {results, targetCount} = computePredictorStats(
+        filteredEvents, targetKey, selectedRange > 0 ? 1 : minVol, forceSet
+      );
+
+      // If range selected, keep only range settlements + their force-checked status
+      let displayResults = results;
+      if (selectedRange > 0) {
+        const rangeKeys = new Set(NAMED_RANGES[selectedRange].map(normKey));
+        displayResults = results.filter(r => rangeKeys.has(normKey(r.settlement)));
+      }
+
+      const opRanked = pickTopOperational(displayResults);
+
+      renderResults(targetKey, targetCount, startDt, endDt, displayResults, opRanked, minVol);
+      hideStatus();
+    } catch(err) {
+      showError('שגיאה בניתוח: ' + err.message);
+      hideStatus();
+    }
+    document.getElementById('analyzeBtn').disabled = false;
+  }, 50);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// RENDERING
+// ══════════════════════════════════════════════════════════════════
+function renderResults(targetKey, targetCount, startDt, endDt, results, opRanked, minVol) {
+  const targetName = settlementDisplay(targetKey);
+  const dateRange = startDt.toLocaleDateString('he-IL') + ' – ' + endDt.toLocaleDateString('he-IL');
+
+  // Summary
+  const summaryEl = document.getElementById('summary');
+  summaryEl.innerHTML =
+    `🎯 יעד: <strong>${targetKey} (${targetName})</strong> &nbsp;|&nbsp; ` +
+    `${targetCount} אזעקות &nbsp;|&nbsp; ` +
+    `תקופה: <strong>${dateRange}</strong> &nbsp;|&nbsp; ` +
+    `${results.length} יישובים מנבאים`;
+  summaryEl.style.display = 'block';
+
+  // Cards
+  const cardsEl = document.getElementById('cards');
+  cardsEl.innerHTML = '';
+
+  if (results.length === 0) {
+    cardsEl.innerHTML = '<div class="no-data">לא נמצאו יישובים מנבאים בתנאים אלה.<br>נסה להוריד את ספף "מינימום אזעקות" או לשנות את טווח התאריכים.</div>';
+    document.getElementById('results').style.display = 'block';
+    document.getElementById('resultsLabel').textContent = '';
+    return;
+  }
+
+  // Top operational triggers first (sorted by operational_score),
+  // then remaining sorted by precision
+  const opKeys = new Set(opRanked.map(r => r.settlement));
+  const opSection = opRanked;
+  const precSection = results.filter(r => !opKeys.has(r.settlement));
+
+  if (opSection.length > 0) {
+    cardsEl.appendChild(makeSectionHeader('⚡ המנבאים המועילים ביותר (ניקוד משולב)'));
+    opSection.forEach((r, i) => cardsEl.appendChild(makeCard(r, i+1, targetKey, targetName)));
+  }
+
+  if (precSection.length > 0) {
+    cardsEl.appendChild(makeSectionHeader('📊 שאר המנבאים (לפי דיוק)'));
+    precSection.forEach((r, i) => cardsEl.appendChild(makeCard(r, i+1, targetKey, targetName)));
+  }
+
+  document.getElementById('resultsLabel').textContent =
+    `נמצאו ${results.length} יישובים מנבאים · מסודרים לפי שימושיות תפעולית`;
+  document.getElementById('results').style.display = 'block';
+
+  // Animate lead bars
+  requestAnimationFrame(() => {
+    document.querySelectorAll('.lead-bar[data-w]').forEach(el => {
+      el.style.width = el.dataset.w + '%';
+    });
+  });
+}
+
+function makeSectionHeader(text) {
+  const el = document.createElement('div');
+  el.style.cssText = 'padding:6px 0 4px;font-size:.78rem;color:#5f8baa;text-transform:uppercase;letter-spacing:.5px';
+  el.textContent = text;
+  return el;
+}
+
+function makeCard(r, rank, targetKey, targetName) {
+  const tier = tierClass(r.precision);
+  const precPct = Math.round(r.precision * 100);
+  const sName = r.settlement;
+  const sDisplay = settlementDisplay(sName);
+  const isForce = r.force_checked;
+
+  const barW = isNaN(r.avg_lead_sec) ? 0 : Math.min(100, Math.round(r.avg_lead_sec / MAX_LEAD_SEC * 100));
+
+  // Decision sentence
+  let decisionHtml;
+  if (r.success_count === 0 || isNaN(r.avg_lead_sec)) {
+    decisionHtml = `כאשר הייתה אזעקה ב<strong>${sName}</strong> — לא הייתה אזעקה ב${targetKey} בתוך ${MAX_LEAD_SEC/60} דקות.`;
+  } else {
+    decisionHtml = `אם יש אזעקה ב<strong>${sName}</strong> → סיכוי של <strong>${precPct}%</strong> לאזעקה ב${targetKey} בתוך 10 דקות.`;
+  }
+
+  const div = document.createElement('div');
+  div.className = `card ${tier}${isForce ? ' force-card' : ''}`;
+  div.innerHTML = `
+    <div class="rank ${rankClass(rank)}">${rank}</div>
+    <div class="prob-circle">
+      <span class="pct">${precPct}%</span>
+      <span class="lbl">דיוק</span>
+    </div>
+    <div class="card-body">
+      <div class="settlement-name">
+        ${sName}
+        ${sName !== sDisplay ? `<span style="color:#5f8baa;font-size:.8rem;font-weight:400">(${sDisplay})</span>` : ''}
+        ${isForce ? '<span class="force-badge">★ עדיפות</span>' : ''}
+      </div>
+      <div class="decision-text">${decisionHtml}</div>
+      <div class="mini-stats">
+        <div class="stat"><span>אזעקות</span><span class="val">${r.total_events}</span></div>
+        <div class="stat"><span>הצלחות</span><span class="val">${r.success_count}/${r.total_events}</span></div>
+        <div class="stat"><span>זמן הקדמה ממוצע</span><span class="val">${formatLead(r.avg_lead_sec)}</span></div>
+        <div class="stat"><span>זמן הקדמה חציוני</span><span class="val">${formatLead(r.med_lead_sec)}</span></div>
+        <div class="stat"><span>P(יישוב|יעד)</span><span class="val">${pct(r.p_settlement_given_target)}</span></div>
+        ${r.operational_score !== undefined ? `<div class="stat"><span>ניקוד תפעולי</span><span class="val">${r.operational_score.toFixed(3)}</span></div>` : ''}
+      </div>
+      <div class="lead-bar-wrap">
+        <div class="lead-bar" data-w="${barW}" style="width:0%"></div>
+      </div>
+    </div>`;
+  return div;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Init
+// ══════════════════════════════════════════════════════════════════
+document.getElementById('startDate').value = DEFAULT_START;
+
+// ── Embedded data (generated by build_standalone.py) ──────────────
+const EMBEDDED_DATA = {"messages":[{"id":1,"type":"message","date":"2026-01-01T12:25:30","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nשדרות (מיידי)\nאשקלון (מיידי)\nקריית גת (מיידי)\nגדרה (מיידי)"},{"id":2,"type":"message","date":"2026-01-01T12:26:15","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":3,"type":"message","date":"2026-01-01T12:29:30","text":"ירי רקטות וטילים\nאשקלון (מיידי)"},{"id":4,"type":"message","date":"2026-01-01T12:30:33","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":5,"type":"message","date":"2026-01-01T15:47:40","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nלכיש (מיידי)\nאשדוד (מיידי)"},{"id":6,"type":"message","date":"2026-01-01T15:48:48","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":7,"type":"message","date":"2026-01-01T16:40:31","text":"ירי רקטות וטילים\nשדרות (מיידי)\nנתיבות (מיידי)\nקריית ארבע (מיידי)\nאופקים (מיידי)"},{"id":8,"type":"message","date":"2026-01-02T00:31:12","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nלכיש (מיידי)\nאשדוד (מיידי)"},{"id":9,"type":"message","date":"2026-01-02T00:32:06","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":10,"type":"message","date":"2026-01-02T14:46:40","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nשדרות (מיידי)\nנתיבות (מיידי)"},{"id":11,"type":"message","date":"2026-01-02T14:47:04","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":12,"type":"message","date":"2026-01-02T18:27:02","text":"ירי רקטות וטילים\nאשקלון (מיידי)"},{"id":13,"type":"message","date":"2026-01-02T18:32:02","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nקריית ארבע (מיידי)\nלכיש (מיידי)"},{"id":14,"type":"message","date":"2026-01-02T18:33:13","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":15,"type":"message","date":"2026-01-03T00:23:42","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nאשדוד (מיידי)"},{"id":16,"type":"message","date":"2026-01-03T00:24:22","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":17,"type":"message","date":"2026-01-03T16:16:26","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nשדרות (מיידי)\nנתיבות (מיידי)"},{"id":18,"type":"message","date":"2026-01-03T16:17:29","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":19,"type":"message","date":"2026-01-03T19:57:24","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nקריית גת (מיידי)\nלכיש (מיידי)"},{"id":20,"type":"message","date":"2026-01-03T22:07:48","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nקריית ארבע (מיידי)\nנתיבות (מיידי)"},{"id":21,"type":"message","date":"2026-01-04T12:19:51","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית ארבע (מיידי)\nאשדוד (מיידי)"},{"id":22,"type":"message","date":"2026-01-04T17:30:38","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nקריית ארבע (מיידי)\nנתיבות (מיידי)\nגדרה (מיידי)"},{"id":23,"type":"message","date":"2026-01-05T15:25:10","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nשדרות (מיידי)"},{"id":24,"type":"message","date":"2026-01-05T15:25:45","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":25,"type":"message","date":"2026-01-05T15:29:10","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nאשדוד (מיידי)"},{"id":26,"type":"message","date":"2026-01-05T15:29:38","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":27,"type":"message","date":"2026-01-05T21:10:04","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nשדרות (מיידי)\nקריית גת (מיידי)\nלכיש (מיידי)\nגדרה (מיידי)"},{"id":28,"type":"message","date":"2026-01-05T21:10:55","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":29,"type":"message","date":"2026-01-06T00:24:31","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nלכיש (מיידי)\nקריית גת (מיידי)"},{"id":30,"type":"message","date":"2026-01-06T00:26:31","text":"ירי רקטות וטילים\nנתיבות (מיידי)"},{"id":31,"type":"message","date":"2026-01-06T00:27:15","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":32,"type":"message","date":"2026-01-06T14:22:59","text":"ירי רקטות וטילים\nנתיבות (מיידי)"},{"id":33,"type":"message","date":"2026-01-06T14:24:28","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":34,"type":"message","date":"2026-01-06T15:07:09","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nקריית גת (מיידי)\nבאר שבע (מיידי)"},{"id":35,"type":"message","date":"2026-01-06T15:07:29","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":36,"type":"message","date":"2026-01-06T19:51:52","text":"ירי רקטות וטילים\nשדרות (מיידי)\nאשקלון (מיידי)"},{"id":37,"type":"message","date":"2026-01-07T02:51:58","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nקריית ארבע (מיידי)\nאשדוד (מיידי)"},{"id":38,"type":"message","date":"2026-01-07T02:53:19","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":39,"type":"message","date":"2026-01-07T02:53:58","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nבאר שבע (מיידי)\nגדרה (מיידי)"},{"id":40,"type":"message","date":"2026-01-07T02:54:23","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":41,"type":"message","date":"2026-01-07T15:28:20","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית ארבע (מיידי)\nאשקלון (מיידי)\nבאר שבע (מיידי)\nקריית גת (מיידי)"},{"id":42,"type":"message","date":"2026-01-07T15:30:20","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nלכיש (מיידי)"},{"id":43,"type":"message","date":"2026-01-07T20:53:14","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית ארבע (מיידי)\nאשדוד (מיידי)\nלכיש (מיידי)"},{"id":44,"type":"message","date":"2026-01-07T20:53:47","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":45,"type":"message","date":"2026-01-07T21:55:20","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nלכיש (מיידי)\nראשון לציון (מיידי)"},{"id":46,"type":"message","date":"2026-01-08T03:53:24","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nנתיבות (מיידי)"},{"id":47,"type":"message","date":"2026-01-08T03:54:26","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":48,"type":"message","date":"2026-01-08T17:58:23","text":"כח אדם של פיקוד העורף מבצע סיורים באזור"},{"id":49,"type":"message","date":"2026-01-08T19:16:14","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nאשדוד (מיידי)"},{"id":50,"type":"message","date":"2026-01-08T19:16:52","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":51,"type":"message","date":"2026-01-08T19:20:14","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nאשקלון (מיידי)\nאשדוד (מיידי)"},{"id":52,"type":"message","date":"2026-01-08T21:22:42","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nקריית ארבע (מיידי)"},{"id":53,"type":"message","date":"2026-01-09T00:36:03","text":"ירי רקטות וטילים\nאשקלון (מיידי)"},{"id":54,"type":"message","date":"2026-01-09T13:50:15","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nקריית ארבע (מיידי)"},{"id":55,"type":"message","date":"2026-01-09T13:51:04","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":56,"type":"message","date":"2026-01-09T13:53:15","text":"ירי רקטות וטילים\nשדרות (מיידי)\nאשקלון (מיידי)"},{"id":57,"type":"message","date":"2026-01-09T13:54:40","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":58,"type":"message","date":"2026-01-09T16:32:08","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית ארבע (מיידי)\nנתיבות (מיידי)\nגדרה (מיידי)"},{"id":59,"type":"message","date":"2026-01-10T01:23:07","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nבאר שבע (מיידי)\nלכיש (מיידי)"},{"id":60,"type":"message","date":"2026-01-10T01:23:51","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":61,"type":"message","date":"2026-01-10T01:28:07","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nלכיש (מיידי)"},{"id":62,"type":"message","date":"2026-01-10T01:46:57","text":"ירי רקטות וטילים\nשדרות (מיידי)\nלכיש (מיידי)\nקריית גת (מיידי)"},{"id":63,"type":"message","date":"2026-01-10T01:47:41","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":64,"type":"message","date":"2026-01-10T02:49:36","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nשדרות (מיידי)\nאשדוד (מיידי)\nקריית גת (מיידי)\nיבנה (מיידי)"},{"id":65,"type":"message","date":"2026-01-10T19:30:37","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nשדרות (מיידי)\nקריית ארבע (מיידי)\nאשדוד (מיידי)\nבאר שבע (מיידי)"},{"id":66,"type":"message","date":"2026-01-10T19:31:22","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":67,"type":"message","date":"2026-01-10T19:33:37","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nאשקלון (מיידי)\nבאר שבע (מיידי)"},{"id":68,"type":"message","date":"2026-01-10T19:33:57","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":69,"type":"message","date":"2026-01-10T20:41:23","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nקריית ארבע (מיידי)"},{"id":70,"type":"message","date":"2026-01-10T20:42:14","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":71,"type":"message","date":"2026-01-10T23:29:08","text":"ירי רקטות וטילים\nשדרות (מיידי)\nאשקלון (מיידי)"},{"id":72,"type":"message","date":"2026-01-10T23:30:38","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":73,"type":"message","date":"2026-01-11T16:12:11","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nשדרות (מיידי)\nקריית ארבע (מיידי)\nלכיש (מיידי)\nגן יבנה (מיידי)"},{"id":74,"type":"message","date":"2026-01-11T16:13:40","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":75,"type":"message","date":"2026-01-11T16:15:11","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nשדרות (מיידי)\nבאר שבע (מיידי)\nקריית גת (מיידי)"},{"id":76,"type":"message","date":"2026-01-11T16:15:57","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":77,"type":"message","date":"2026-01-11T16:24:22","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nשדרות (מיידי)\nלכיש (מיידי)\nיבנה (מיידי)"},{"id":78,"type":"message","date":"2026-01-11T20:04:10","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nנתיבות (מיידי)\nבאר שבע (מיידי)\nאשדוד (מיידי)"},{"id":79,"type":"message","date":"2026-01-11T22:50:24","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nנתיבות (מיידי)\nקריית ארבע (מיידי)"},{"id":80,"type":"message","date":"2026-01-12T13:25:37","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nאשקלון (מיידי)\nלכיש (מיידי)\nקריית גת (מיידי)\nיבנה (מיידי)"},{"id":81,"type":"message","date":"2026-01-12T13:26:07","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":82,"type":"message","date":"2026-01-12T13:27:37","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nשדרות (מיידי)\nאשדוד (מיידי)"},{"id":83,"type":"message","date":"2026-01-12T13:27:59","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":84,"type":"message","date":"2026-01-12T15:05:21","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nקריית גת (מיידי)"},{"id":85,"type":"message","date":"2026-01-12T15:06:28","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":86,"type":"message","date":"2026-01-12T19:17:11","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nנתיבות (מיידי)\nאשקלון (מיידי)\nלכיש (מיידי)"},{"id":87,"type":"message","date":"2026-01-12T21:17:16","text":"תזכורת: אסיפת תושבים הערב בשעה 20:00"},{"id":88,"type":"message","date":"2026-01-13T02:44:11","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nקריית ארבע (מיידי)\nשדרות (מיידי)\nאשדוד (מיידי)\nלכיש (מיידי)"},{"id":89,"type":"message","date":"2026-01-13T02:45:25","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":90,"type":"message","date":"2026-01-13T02:48:11","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nגן יבנה (מיידי)"},{"id":91,"type":"message","date":"2026-01-13T16:35:29","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nאשקלון (מיידי)\nשדרות (מיידי)"},{"id":92,"type":"message","date":"2026-01-13T16:36:20","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":93,"type":"message","date":"2026-01-13T19:24:11","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nנתיבות (מיידי)\nלכיש (מיידי)\nאשדוד (מיידי)"},{"id":94,"type":"message","date":"2026-01-13T19:25:33","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":95,"type":"message","date":"2026-01-14T00:01:27","text":"ירי רקטות וטילים\nשדרות (מיידי)\nאשקלון (מיידי)"},{"id":96,"type":"message","date":"2026-01-14T00:01:48","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":97,"type":"message","date":"2026-01-14T00:06:27","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nשדרות (מיידי)\nבאר שבע (מיידי)\nאשדוד (מיידי)\nאופקים (מיידי)"},{"id":98,"type":"message","date":"2026-01-14T00:07:18","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":99,"type":"message","date":"2026-01-14T00:28:28","text":"ירי רקטות וטילים\nשדרות (מיידי)\nאשקלון (מיידי)\nנתיבות (מיידי)\nלכיש (מיידי)\nבאר שבע (מיידי)"},{"id":100,"type":"message","date":"2026-01-14T00:29:17","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":101,"type":"message","date":"2026-01-14T04:24:46","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nשדרות (מיידי)\nקריית גת (מיידי)\nיבנה (מיידי)"},{"id":102,"type":"message","date":"2026-01-14T04:26:13","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":103,"type":"message","date":"2026-01-14T14:09:06","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nבאר שבע (מיידי)\nרהט (מיידי)"},{"id":104,"type":"message","date":"2026-01-14T14:10:26","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":105,"type":"message","date":"2026-01-14T17:02:10","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nאשדוד (מיידי)\nבאר שבע (מיידי)"},{"id":106,"type":"message","date":"2026-01-14T17:02:36","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":107,"type":"message","date":"2026-01-14T17:06:10","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nקריית גת (מיידי)\nלכיש (מיידי)"},{"id":108,"type":"message","date":"2026-01-14T17:08:18","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nאשקלון (מיידי)\nאשדוד (מיידי)"},{"id":109,"type":"message","date":"2026-01-14T17:09:05","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":110,"type":"message","date":"2026-01-14T18:08:05","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nקריית גת (מיידי)\nיבנה (מיידי)"},{"id":111,"type":"message","date":"2026-01-15T00:02:10","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nבאר שבע (מיידי)\nאשדוד (מיידי)"},{"id":112,"type":"message","date":"2026-01-15T19:13:38","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nנתיבות (מיידי)\nקריית ארבע (מיידי)\nלכיש (מיידי)"},{"id":113,"type":"message","date":"2026-01-15T21:15:27","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nאשקלון (מיידי)"},{"id":114,"type":"message","date":"2026-01-15T23:14:24","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nקריית ארבע (מיידי)\nלכיש (מיידי)\nבאר שבע (מיידי)\nרהט (מיידי)"},{"id":115,"type":"message","date":"2026-01-15T23:14:46","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":116,"type":"message","date":"2026-01-16T03:52:20","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nלכיש (מיידי)\nאשדוד (מיידי)"},{"id":117,"type":"message","date":"2026-01-16T03:53:42","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":118,"type":"message","date":"2026-01-16T13:46:41","text":"ירי רקטות וטילים\nשדרות (מיידי)\nנתיבות (מיידי)"},{"id":119,"type":"message","date":"2026-01-16T13:47:59","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":120,"type":"message","date":"2026-01-16T14:44:02","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nאשקלון (מיידי)"},{"id":121,"type":"message","date":"2026-01-16T14:45:31","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":122,"type":"message","date":"2026-01-16T17:27:28","text":"ירי רקטות וטילים\nשדרות (מיידי)"},{"id":123,"type":"message","date":"2026-01-16T17:27:54","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":124,"type":"message","date":"2026-01-16T18:59:52","text":"ירי רקטות וטילים\nשדרות (מיידי)\nאשדוד (מיידי)\nבאר שבע (מיידי)"},{"id":125,"type":"message","date":"2026-01-16T19:02:52","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nשדרות (מיידי)\nאשדוד (מיידי)"},{"id":126,"type":"message","date":"2026-01-16T19:03:31","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":127,"type":"message","date":"2026-01-17T16:57:41","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nאשדוד (מיידי)\nיבנה (מיידי)"},{"id":128,"type":"message","date":"2026-01-17T16:59:05","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":129,"type":"message","date":"2026-01-17T19:03:48","text":"ירי רקטות וטילים\nשדרות (מיידי)\nנתיבות (מיידי)\nקריית גת (מיידי)\nבאר שבע (מיידי)"},{"id":130,"type":"message","date":"2026-01-17T19:05:18","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":131,"type":"message","date":"2026-01-17T19:45:55","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nשדרות (מיידי)\nקריית גת (מיידי)\nבאר שבע (מיידי)\nראשון לציון (מיידי)"},{"id":132,"type":"message","date":"2026-01-17T19:47:03","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":133,"type":"message","date":"2026-01-17T20:01:39","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nנתיבות (מיידי)\nקריית ארבע (מיידי)\nאשדוד (מיידי)\nקריית גת (מיידי)\nיבנה (מיידי)"},{"id":134,"type":"message","date":"2026-01-17T20:02:17","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":135,"type":"message","date":"2026-01-17T20:12:08","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nלכיש (מיידי)\nבאר שבע (מיידי)"},{"id":136,"type":"message","date":"2026-01-17T23:59:31","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nאשקלון (מיידי)\nשדרות (מיידי)\nרהט (מיידי)"},{"id":137,"type":"message","date":"2026-01-18T00:00:27","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":138,"type":"message","date":"2026-01-18T13:40:24","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית ארבע (מיידי)\nנתיבות (מיידי)\nלכיש (מיידי)"},{"id":139,"type":"message","date":"2026-01-18T13:41:15","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":140,"type":"message","date":"2026-01-18T19:32:33","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nקריית גת (מיידי)\nבאר שבע (מיידי)"},{"id":141,"type":"message","date":"2026-01-18T19:33:52","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":142,"type":"message","date":"2026-01-18T22:46:25","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nאשקלון (מיידי)\nשדרות (מיידי)\nיבנה (מיידי)"},{"id":143,"type":"message","date":"2026-01-19T02:50:01","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nשדרות (מיידי)\nקריית גת (מיידי)\nבאר שבע (מיידי)"},{"id":144,"type":"message","date":"2026-01-19T02:51:09","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":145,"type":"message","date":"2026-01-19T16:39:58","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nשדרות (מיידי)\nאשקלון (מיידי)"},{"id":146,"type":"message","date":"2026-01-19T16:43:58","text":"ירי רקטות וטילים\nאשקלון (מיידי)"},{"id":147,"type":"message","date":"2026-01-19T17:01:08","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nשדרות (מיידי)\nקריית ארבע (מיידי)"},{"id":148,"type":"message","date":"2026-01-19T17:02:24","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":149,"type":"message","date":"2026-01-19T21:37:14","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nקריית ארבע (מיידי)\nנתיבות (מיידי)\nקריית גת (מיידי)\nאשדוד (מיידי)\nגדרה (מיידי)"},{"id":150,"type":"message","date":"2026-01-19T23:11:23","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית ארבע (מיידי)\nאשקלון (מיידי)"},{"id":151,"type":"message","date":"2026-01-19T23:39:30","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nאשקלון (מיידי)\nאופקים (מיידי)"},{"id":152,"type":"message","date":"2026-01-20T04:37:30","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית ארבע (מיידי)\nגדרה (מיידי)"},{"id":153,"type":"message","date":"2026-01-20T04:38:37","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":154,"type":"message","date":"2026-01-20T12:25:31","text":"ירי רקטות וטילים\nשדרות (מיידי)\nנתיבות (מיידי)\nקריית ארבע (מיידי)"},{"id":155,"type":"message","date":"2026-01-20T12:26:29","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":156,"type":"message","date":"2026-01-20T12:27:31","text":"ירי רקטות וטילים\nשדרות (מיידי)\nאופקים (מיידי)"},{"id":157,"type":"message","date":"2026-01-20T13:50:30","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nקריית גת (מיידי)\nבאר שבע (מיידי)"},{"id":158,"type":"message","date":"2026-01-20T15:58:29","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nשדרות (מיידי)\nבאר שבע (מיידי)\nאשדוד (מיידי)"},{"id":159,"type":"message","date":"2026-01-20T15:59:36","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":160,"type":"message","date":"2026-01-20T16:02:29","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)"},{"id":161,"type":"message","date":"2026-01-20T16:03:16","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":162,"type":"message","date":"2026-01-21T03:01:55","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית גת (מיידי)\nגדרה (מיידי)"},{"id":163,"type":"message","date":"2026-01-21T03:02:42","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":164,"type":"message","date":"2026-01-21T03:59:05","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nקריית גת (מיידי)"},{"id":165,"type":"message","date":"2026-01-21T04:01:05","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nלכיש (מיידי)\nגן יבנה (מיידי)"},{"id":166,"type":"message","date":"2026-01-21T04:02:18","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":167,"type":"message","date":"2026-01-21T13:51:14","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nשדרות (מיידי)\nקריית ארבע (מיידי)"},{"id":168,"type":"message","date":"2026-01-21T20:05:46","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nנתיבות (מיידי)\nאשקלון (מיידי)"},{"id":169,"type":"message","date":"2026-01-21T20:07:02","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":170,"type":"message","date":"2026-01-21T20:43:30","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nקריית ארבע (מיידי)\nבאר שבע (מיידי)\nלכיש (מיידי)"},{"id":171,"type":"message","date":"2026-01-21T20:44:45","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":172,"type":"message","date":"2026-01-22T01:13:34","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nבאר שבע (מיידי)"},{"id":173,"type":"message","date":"2026-01-22T01:14:47","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":174,"type":"message","date":"2026-01-22T16:19:59","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nנתיבות (מיידי)\nרהט (מיידי)"},{"id":175,"type":"message","date":"2026-01-22T23:40:33","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nאשדוד (מיידי)\nקריית גת (מיידי)"},{"id":176,"type":"message","date":"2026-01-23T04:12:39","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nאשקלון (מיידי)\nשדרות (מיידי)\nקריית גת (מיידי)"},{"id":177,"type":"message","date":"2026-01-23T04:13:12","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":178,"type":"message","date":"2026-01-23T21:45:34","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nשדרות (מיידי)\nאשקלון (מיידי)\nלכיש (מיידי)\nקריית גת (מיידי)"},{"id":179,"type":"message","date":"2026-01-23T21:46:12","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":180,"type":"message","date":"2026-01-23T21:47:34","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nלכיש (מיידי)\nאשדוד (מיידי)"},{"id":181,"type":"message","date":"2026-01-24T00:57:51","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nנתיבות (מיידי)\nשדרות (מיידי)\nאשדוד (מיידי)\nראשון לציון (מיידי)"},{"id":182,"type":"message","date":"2026-01-24T00:59:07","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":183,"type":"message","date":"2026-01-24T01:43:21","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nאשקלון (מיידי)\nשדרות (מיידי)\nלכיש (מיידי)\nאשדוד (מיידי)\nגדרה (מיידי)"},{"id":184,"type":"message","date":"2026-01-24T01:44:07","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":185,"type":"message","date":"2026-01-24T14:02:23","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nלכיש (מיידי)\nראשון לציון (מיידי)"},{"id":186,"type":"message","date":"2026-01-24T14:02:45","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":187,"type":"message","date":"2026-01-24T16:55:14","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nשדרות (מיידי)\nלכיש (מיידי)\nאשדוד (מיידי)"},{"id":188,"type":"message","date":"2026-01-24T17:00:14","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית ארבע (מיידי)\nאשקלון (מיידי)\nגדרה (מיידי)"},{"id":189,"type":"message","date":"2026-01-24T17:00:44","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":190,"type":"message","date":"2026-01-24T19:19:16","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית ארבע (מיידי)\nאשדוד (מיידי)"},{"id":191,"type":"message","date":"2026-01-24T19:20:41","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":192,"type":"message","date":"2026-01-24T20:27:19","text":"ירי רקטות וטילים\nשדרות (מיידי)\nנתיבות (מיידי)"},{"id":193,"type":"message","date":"2026-01-24T20:27:52","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":194,"type":"message","date":"2026-01-25T00:59:26","text":"ירי רקטות וטילים\nאשקלון (מיידי)"},{"id":195,"type":"message","date":"2026-01-25T01:00:49","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":196,"type":"message","date":"2026-01-25T19:37:53","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית ארבע (מיידי)\nאשקלון (מיידי)\nלכיש (מיידי)\nקריית גת (מיידי)"},{"id":197,"type":"message","date":"2026-01-25T19:38:22","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":198,"type":"message","date":"2026-01-25T21:35:46","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nאשדוד (מיידי)\nלכיש (מיידי)"},{"id":199,"type":"message","date":"2026-01-25T22:37:00","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nאשקלון (מיידי)\nקריית ארבע (מיידי)\nלכיש (מיידי)"},{"id":200,"type":"message","date":"2026-01-25T22:37:27","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":201,"type":"message","date":"2026-01-25T22:41:00","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nשדרות (מיידי)\nנתיבות (מיידי)\nבאר שבע (מיידי)\nלכיש (מיידי)"},{"id":202,"type":"message","date":"2026-01-25T22:42:07","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":203,"type":"message","date":"2026-01-25T22:48:00","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nאשקלון (מיידי)\nראשון לציון (מיידי)"},{"id":204,"type":"message","date":"2026-01-25T22:50:00","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nאשקלון (מיידי)\nשדרות (מיידי)"},{"id":205,"type":"message","date":"2026-01-26T03:42:38","text":"ירי רקטות וטילים\nשדרות (מיידי)\nלכיש (מיידי)"},{"id":206,"type":"message","date":"2026-01-26T13:26:24","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית ארבע (מיידי)\nנתיבות (מיידי)"},{"id":207,"type":"message","date":"2026-01-26T13:27:30","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":208,"type":"message","date":"2026-01-26T13:29:24","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nקריית ארבע (מיידי)\nקריית גת (מיידי)\nרהט (מיידי)"},{"id":209,"type":"message","date":"2026-01-26T13:30:53","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":210,"type":"message","date":"2026-01-26T21:30:06","text":"ירי רקטות וטילים\nשדרות (מיידי)\nנתיבות (מיידי)\nקריית ארבע (מיידי)\nקריית גת (מיידי)\nראשון לציון (מיידי)"},{"id":211,"type":"message","date":"2026-01-27T00:03:00","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nקריית גת (מיידי)\nבאר שבע (מיידי)"},{"id":212,"type":"message","date":"2026-01-27T16:03:57","text":"ירי רקטות וטילים\nשדרות (מיידי)"},{"id":213,"type":"message","date":"2026-01-27T16:04:53","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":214,"type":"message","date":"2026-01-28T01:20:03","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nקריית ארבע (מיידי)\nגן יבנה (מיידי)"},{"id":215,"type":"message","date":"2026-01-28T01:21:24","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":216,"type":"message","date":"2026-01-28T04:24:54","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nלכיש (מיידי)"},{"id":217,"type":"message","date":"2026-01-28T04:26:09","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":218,"type":"message","date":"2026-01-28T12:27:12","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nבאר שבע (מיידי)"},{"id":219,"type":"message","date":"2026-01-28T12:27:35","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":220,"type":"message","date":"2026-01-28T17:56:34","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית ארבע (מיידי)\nנתיבות (מיידי)\nקריית גת (מיידי)\nלכיש (מיידי)"},{"id":221,"type":"message","date":"2026-01-28T19:40:09","text":"ירי רקטות וטילים\nשדרות (מיידי)\nבאר שבע (מיידי)\nגן יבנה (מיידי)"},{"id":222,"type":"message","date":"2026-01-28T19:40:44","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":223,"type":"message","date":"2026-01-28T19:45:09","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)"},{"id":224,"type":"message","date":"2026-01-28T19:46:34","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":225,"type":"message","date":"2026-01-29T12:01:35","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nאשדוד (מיידי)\nלכיש (מיידי)"},{"id":226,"type":"message","date":"2026-01-29T15:53:06","text":"בשעה האחרונה: 3 טילים יורטו מעל הנגב"},{"id":227,"type":"message","date":"2026-01-29T16:57:05","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nיבנה (מיידי)"},{"id":228,"type":"message","date":"2026-01-29T17:59:52","text":"ירי רקטות וטילים\nשדרות (מיידי)"},{"id":229,"type":"message","date":"2026-01-29T21:42:04","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית ארבע (מיידי)\nנתיבות (מיידי)\nקריית גת (מיידי)\nלכיש (מיידי)"},{"id":230,"type":"message","date":"2026-01-30T01:18:33","text":"עדכון: מצב שקט בדרום"},{"id":231,"type":"message","date":"2026-01-30T12:44:40","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nבאר שבע (מיידי)\nלכיש (מיידי)"},{"id":232,"type":"message","date":"2026-01-30T12:45:24","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":233,"type":"message","date":"2026-01-30T13:04:21","text":"ירי רקטות וטילים\nשדרות (מיידי)\nבאר שבע (מיידי)\nקריית גת (מיידי)"},{"id":234,"type":"message","date":"2026-01-30T16:59:18","text":"ירי רקטות וטילים\nנתיבות (מיידי)"},{"id":235,"type":"message","date":"2026-01-30T19:46:49","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nלכיש (מיידי)"},{"id":236,"type":"message","date":"2026-01-30T19:47:46","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":237,"type":"message","date":"2026-01-31T01:11:42","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nקריית ארבע (מיידי)\nאשקלון (מיידי)\nלכיש (מיידי)"},{"id":238,"type":"message","date":"2026-01-31T01:12:09","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":239,"type":"message","date":"2026-01-31T12:31:45","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nקריית ארבע (מיידי)\nשדרות (מיידי)\nלכיש (מיידי)\nקריית גת (מיידי)"},{"id":240,"type":"message","date":"2026-01-31T12:32:24","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":241,"type":"message","date":"2026-01-31T14:43:11","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nקריית ארבע (מיידי)\nבאר שבע (מיידי)\nקריית גת (מיידי)"},{"id":242,"type":"message","date":"2026-01-31T14:43:45","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":243,"type":"message","date":"2026-01-31T20:43:20","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nשדרות (מיידי)\nבאר שבע (מיידי)\nאשדוד (מיידי)"},{"id":244,"type":"message","date":"2026-01-31T20:44:42","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":245,"type":"message","date":"2026-01-31T20:45:20","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nשדרות (מיידי)\nלכיש (מיידי)"},{"id":246,"type":"message","date":"2026-02-01T00:44:53","text":"ירי רקטות וטילים\nשדרות (מיידי)\nאשקלון (מיידי)\nקריית ארבע (מיידי)"},{"id":247,"type":"message","date":"2026-02-01T14:03:47","text":"ירי רקטות וטילים\nשדרות (מיידי)\nבאר שבע (מיידי)\nלכיש (מיידי)\nרהט (מיידי)"},{"id":248,"type":"message","date":"2026-02-01T14:04:57","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":249,"type":"message","date":"2026-02-01T14:21:39","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nנתיבות (מיידי)"},{"id":250,"type":"message","date":"2026-02-01T14:23:05","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":251,"type":"message","date":"2026-02-01T14:24:39","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nאשדוד (מיידי)"},{"id":252,"type":"message","date":"2026-02-01T14:25:19","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":253,"type":"message","date":"2026-02-01T15:24:59","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nנתיבות (מיידי)\nשדרות (מיידי)\nראשון לציון (מיידי)"},{"id":254,"type":"message","date":"2026-02-01T22:27:14","text":"בוקר טוב לכולם"},{"id":255,"type":"message","date":"2026-02-02T01:26:10","text":"ירי רקטות וטילים\nשדרות (מיידי)\nנתיבות (מיידי)\nקריית ארבע (מיידי)\nקריית גת (מיידי)\nגדרה (מיידי)"},{"id":256,"type":"message","date":"2026-02-02T12:28:56","text":"ירי רקטות וטילים\nשדרות (מיידי)\nנתיבות (מיידי)\nקריית ארבע (מיידי)"},{"id":257,"type":"message","date":"2026-02-02T12:46:22","text":"ירי רקטות וטילים\nשדרות (מיידי)\nנתיבות (מיידי)\nאשקלון (מיידי)\nלכיש (מיידי)\nקריית גת (מיידי)\nרהט (מיידי)"},{"id":258,"type":"message","date":"2026-02-02T12:47:35","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":259,"type":"message","date":"2026-02-02T21:34:53","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nנתיבות (מיידי)"},{"id":260,"type":"message","date":"2026-02-02T22:54:16","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nנתיבות (מיידי)\nלכיש (מיידי)\nרהט (מיידי)"},{"id":261,"type":"message","date":"2026-02-02T22:55:07","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":262,"type":"message","date":"2026-02-02T22:58:16","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nקריית ארבע (מיידי)"},{"id":263,"type":"message","date":"2026-02-03T02:01:44","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית ארבע (מיידי)\nנתיבות (מיידי)\nבאר שבע (מיידי)\nקריית גת (מיידי)"},{"id":264,"type":"message","date":"2026-02-03T02:02:54","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":265,"type":"message","date":"2026-02-03T12:51:33","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nאשקלון (מיידי)\nקריית ארבע (מיידי)"},{"id":266,"type":"message","date":"2026-02-03T17:59:57","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית ארבע (מיידי)\nלכיש (מיידי)"},{"id":267,"type":"message","date":"2026-02-03T18:01:21","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":268,"type":"message","date":"2026-02-03T20:24:47","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nנתיבות (מיידי)"},{"id":269,"type":"message","date":"2026-02-04T12:46:12","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nשדרות (מיידי)\nלכיש (מיידי)"},{"id":270,"type":"message","date":"2026-02-04T12:47:22","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":271,"type":"message","date":"2026-02-04T14:19:46","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nשדרות (מיידי)\nאשקלון (מיידי)\nלכיש (מיידי)"},{"id":272,"type":"message","date":"2026-02-04T14:20:59","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":273,"type":"message","date":"2026-02-04T15:23:02","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nשדרות (מיידי)\nאשקלון (מיידי)\nאשדוד (מיידי)"},{"id":274,"type":"message","date":"2026-02-04T15:24:10","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":275,"type":"message","date":"2026-02-04T20:30:04","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nקריית גת (מיידי)\nגן יבנה (מיידי)"},{"id":276,"type":"message","date":"2026-02-04T20:31:16","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":277,"type":"message","date":"2026-02-04T20:39:18","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nשדרות (מיידי)\nקריית ארבע (מיידי)"},{"id":278,"type":"message","date":"2026-02-04T20:40:39","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":279,"type":"message","date":"2026-02-05T00:50:03","text":"ירי רקטות וטילים\nנתיבות (מיידי)"},{"id":280,"type":"message","date":"2026-02-05T00:50:56","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":281,"type":"message","date":"2026-02-05T00:53:03","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית ארבע (מיידי)"},{"id":282,"type":"message","date":"2026-02-05T20:09:23","text":"ירי רקטות וטילים\nשדרות (מיידי)\nאשקלון (מיידי)\nקריית ארבע (מיידי)\nבאר שבע (מיידי)\nקריית גת (מיידי)"},{"id":283,"type":"message","date":"2026-02-05T20:18:46","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nאשקלון (מיידי)"},{"id":284,"type":"message","date":"2026-02-05T20:22:46","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית ארבע (מיידי)\nנתיבות (מיידי)"},{"id":285,"type":"message","date":"2026-02-05T20:24:13","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":286,"type":"message","date":"2026-02-05T21:31:41","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nקריית ארבע (מיידי)\nשדרות (מיידי)\nאשדוד (מיידי)\nלכיש (מיידי)"},{"id":287,"type":"message","date":"2026-02-05T21:33:11","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":288,"type":"message","date":"2026-02-05T23:44:02","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nשדרות (מיידי)\nלכיש (מיידי)\nקריית גת (מיידי)"},{"id":289,"type":"message","date":"2026-02-05T23:47:02","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nנתיבות (מיידי)\nאשקלון (מיידי)\nרהט (מיידי)"},{"id":290,"type":"message","date":"2026-02-06T20:25:17","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nנתיבות (מיידי)\nלכיש (מיידי)\nראשון לציון (מיידי)"},{"id":291,"type":"message","date":"2026-02-06T20:26:40","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":292,"type":"message","date":"2026-02-07T03:55:20","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית ארבע (מיידי)"},{"id":293,"type":"message","date":"2026-02-07T04:21:22","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nקריית ארבע (מיידי)\nנתיבות (מיידי)"},{"id":294,"type":"message","date":"2026-02-07T04:26:22","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית ארבע (מיידי)\nקריית גת (מיידי)"},{"id":295,"type":"message","date":"2026-02-07T04:27:13","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":296,"type":"message","date":"2026-02-07T16:00:13","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nאשקלון (מיידי)"},{"id":297,"type":"message","date":"2026-02-07T16:00:48","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":298,"type":"message","date":"2026-02-08T00:48:49","text":"ירי רקטות וטילים\nשדרות (מיידי)\nנתיבות (מיידי)\nלכיש (מיידי)\nבאר שבע (מיידי)\nאופקים (מיידי)"},{"id":299,"type":"message","date":"2026-02-08T00:50:07","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":300,"type":"message","date":"2026-02-08T04:13:06","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nשדרות (מיידי)\nקריית ארבע (מיידי)"},{"id":301,"type":"message","date":"2026-02-08T04:13:36","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":302,"type":"message","date":"2026-02-08T13:54:27","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nשדרות (מיידי)\nקריית ארבע (מיידי)\nאשדוד (מיידי)\nלכיש (מיידי)\nגדרה (מיידי)"},{"id":303,"type":"message","date":"2026-02-08T13:55:52","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":304,"type":"message","date":"2026-02-09T02:05:20","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nשדרות (מיידי)\nבאר שבע (מיידי)"},{"id":305,"type":"message","date":"2026-02-09T02:05:42","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":306,"type":"message","date":"2026-02-09T03:35:35","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nבאר שבע (מיידי)"},{"id":307,"type":"message","date":"2026-02-09T03:36:02","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":308,"type":"message","date":"2026-02-09T14:18:08","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nאשקלון (מיידי)\nשדרות (מיידי)\nבאר שבע (מיידי)\nאשדוד (מיידי)"},{"id":309,"type":"message","date":"2026-02-09T15:03:34","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית ארבע (מיידי)\nנתיבות (מיידי)"},{"id":310,"type":"message","date":"2026-02-09T15:04:22","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":311,"type":"message","date":"2026-02-09T16:52:49","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nשדרות (מיידי)"},{"id":312,"type":"message","date":"2026-02-09T16:53:38","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":313,"type":"message","date":"2026-02-09T22:54:21","text":"ירי רקטות וטילים\nשדרות (מיידי)\nאשדוד (מיידי)"},{"id":314,"type":"message","date":"2026-02-09T22:54:43","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":315,"type":"message","date":"2026-02-09T22:56:21","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nאשקלון (מיידי)\nנתיבות (מיידי)\nבאר שבע (מיידי)"},{"id":316,"type":"message","date":"2026-02-09T22:56:48","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":317,"type":"message","date":"2026-02-10T16:55:02","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית ארבע (מיידי)\nאשקלון (מיידי)"},{"id":318,"type":"message","date":"2026-02-10T16:56:14","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":319,"type":"message","date":"2026-02-10T17:25:16","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nשדרות (מיידי)\nנתיבות (מיידי)\nלכיש (מיידי)"},{"id":320,"type":"message","date":"2026-02-11T00:26:08","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nאשקלון (מיידי)\nקריית גת (מיידי)\nלכיש (מיידי)"},{"id":321,"type":"message","date":"2026-02-11T01:52:06","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nנתיבות (מיידי)\nקריית ארבע (מיידי)\nקריית גת (מיידי)\nבאר שבע (מיידי)\nאופקים (מיידי)"},{"id":322,"type":"message","date":"2026-02-11T01:52:36","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":323,"type":"message","date":"2026-02-11T15:14:17","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nשדרות (מיידי)\nרהט (מיידי)"},{"id":324,"type":"message","date":"2026-02-11T15:15:04","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":325,"type":"message","date":"2026-02-11T15:18:17","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nנתיבות (מיידי)"},{"id":326,"type":"message","date":"2026-02-11T15:19:38","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":327,"type":"message","date":"2026-02-12T00:19:04","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nנתיבות (מיידי)\nקריית ארבע (מיידי)\nבאר שבע (מיידי)\nקריית גת (מיידי)"},{"id":328,"type":"message","date":"2026-02-12T00:19:57","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":329,"type":"message","date":"2026-02-12T13:40:34","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית גת (מיידי)"},{"id":330,"type":"message","date":"2026-02-12T13:42:04","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":331,"type":"message","date":"2026-02-12T19:58:52","text":"ירי רקטות וטילים\nשדרות (מיידי)\nבאר שבע (מיידי)"},{"id":332,"type":"message","date":"2026-02-13T02:16:31","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nאשקלון (מיידי)\nקריית גת (מיידי)\nאשדוד (מיידי)"},{"id":333,"type":"message","date":"2026-02-13T02:18:00","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":334,"type":"message","date":"2026-02-13T04:40:56","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)"},{"id":335,"type":"message","date":"2026-02-13T04:43:56","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nאשדוד (מיידי)\nלכיש (מיידי)"},{"id":336,"type":"message","date":"2026-02-13T12:16:02","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית ארבע (מיידי)\nאשקלון (מיידי)"},{"id":337,"type":"message","date":"2026-02-13T12:16:34","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":338,"type":"message","date":"2026-02-13T12:17:03","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nאשדוד (מיידי)\nלכיש (מיידי)\nאופקים (מיידי)"},{"id":339,"type":"message","date":"2026-02-13T12:18:18","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":340,"type":"message","date":"2026-02-13T12:20:02","text":"ירי רקטות וטילים\nשדרות (מיידי)\nאשקלון (מיידי)\nבאר שבע (מיידי)\nלכיש (מיידי)\nראשון לציון (מיידי)"},{"id":341,"type":"message","date":"2026-02-13T12:20:32","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":342,"type":"message","date":"2026-02-13T18:59:33","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nלכיש (מיידי)\nאשדוד (מיידי)"},{"id":343,"type":"message","date":"2026-02-13T21:02:51","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nנתיבות (מיידי)\nאשקלון (מיידי)\nקריית גת (מיידי)"},{"id":344,"type":"message","date":"2026-02-13T23:12:28","text":"ירי רקטות וטילים\nשדרות (מיידי)\nבאר שבע (מיידי)"},{"id":345,"type":"message","date":"2026-02-13T23:13:37","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":346,"type":"message","date":"2026-02-14T00:16:38","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nשדרות (מיידי)\nאשקלון (מיידי)\nקריית גת (מיידי)\nאשדוד (מיידי)"},{"id":347,"type":"message","date":"2026-02-14T12:30:13","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nקריית ארבע (מיידי)\nבאר שבע (מיידי)\nאשדוד (מיידי)"},{"id":348,"type":"message","date":"2026-02-14T12:34:13","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nבאר שבע (מיידי)"},{"id":349,"type":"message","date":"2026-02-14T16:38:47","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nאשקלון (מיידי)\nשדרות (מיידי)\nלכיש (מיידי)"},{"id":350,"type":"message","date":"2026-02-14T16:40:47","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nאשדוד (מיידי)\nבאר שבע (מיידי)\nגדרה (מיידי)"},{"id":351,"type":"message","date":"2026-02-14T16:41:48","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":352,"type":"message","date":"2026-02-15T01:09:01","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית גת (מיידי)"},{"id":353,"type":"message","date":"2026-02-15T01:10:09","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":354,"type":"message","date":"2026-02-15T01:13:01","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nקריית ארבע (מיידי)\nלכיש (מיידי)\nקריית גת (מיידי)\nרהט (מיידי)"},{"id":355,"type":"message","date":"2026-02-15T01:13:52","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":356,"type":"message","date":"2026-02-15T13:49:06","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nאשקלון (מיידי)\nקריית גת (מיידי)\nבאר שבע (מיידי)"},{"id":357,"type":"message","date":"2026-02-15T13:53:06","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nראשון לציון (מיידי)"},{"id":358,"type":"message","date":"2026-02-15T15:19:27","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nנתיבות (מיידי)\nשדרות (מיידי)\nלכיש (מיידי)\nאשדוד (מיידי)"},{"id":359,"type":"message","date":"2026-02-15T15:20:56","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":360,"type":"message","date":"2026-02-15T17:10:45","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nשדרות (מיידי)\nאשקלון (מיידי)\nגן יבנה (מיידי)"},{"id":361,"type":"message","date":"2026-02-15T17:15:45","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nקריית ארבע (מיידי)\nאשקלון (מיידי)\nבאר שבע (מיידי)"},{"id":362,"type":"message","date":"2026-02-15T17:17:06","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":363,"type":"message","date":"2026-02-16T04:07:47","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nשדרות (מיידי)\nקריית ארבע (מיידי)"},{"id":364,"type":"message","date":"2026-02-16T13:26:40","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nשדרות (מיידי)\nאשקלון (מיידי)"},{"id":365,"type":"message","date":"2026-02-16T13:28:40","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nשדרות (מיידי)"},{"id":366,"type":"message","date":"2026-02-16T18:02:06","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nקריית גת (מיידי)\nבאר שבע (מיידי)"},{"id":367,"type":"message","date":"2026-02-16T18:03:03","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":368,"type":"message","date":"2026-02-16T23:10:45","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)"},{"id":369,"type":"message","date":"2026-02-16T23:11:48","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":370,"type":"message","date":"2026-02-17T01:04:19","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nאשקלון (מיידי)\nשדרות (מיידי)\nלכיש (מיידי)\nאשדוד (מיידי)"},{"id":371,"type":"message","date":"2026-02-17T01:08:19","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nשדרות (מיידי)\nנתיבות (מיידי)"},{"id":372,"type":"message","date":"2026-02-17T01:09:49","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":373,"type":"message","date":"2026-02-17T19:14:53","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nקריית ארבע (מיידי)\nנתיבות (מיידי)\nבאר שבע (מיידי)"},{"id":374,"type":"message","date":"2026-02-17T19:15:40","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":375,"type":"message","date":"2026-02-17T19:51:17","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nשדרות (מיידי)\nנתיבות (מיידי)"},{"id":376,"type":"message","date":"2026-02-17T19:52:02","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":377,"type":"message","date":"2026-02-17T19:56:17","text":"ירי רקטות וטילים\nשדרות (מיידי)\nנתיבות (מיידי)\nאשקלון (מיידי)"},{"id":378,"type":"message","date":"2026-02-17T19:57:35","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":379,"type":"message","date":"2026-02-18T01:33:42","text":"ירי רקטות וטילים\nשדרות (מיידי)\nנתיבות (מיידי)\nקריית ארבע (מיידי)"},{"id":380,"type":"message","date":"2026-02-18T01:34:16","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":381,"type":"message","date":"2026-02-18T18:36:13","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nנתיבות (מיידי)"},{"id":382,"type":"message","date":"2026-02-18T21:46:18","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nנתיבות (מיידי)\nשדרות (מיידי)\nבאר שבע (מיידי)\nלכיש (מיידי)\nגן יבנה (מיידי)"},{"id":383,"type":"message","date":"2026-02-18T22:08:21","text":"ירי רקטות וטילים\nנתיבות (מיידי)"},{"id":384,"type":"message","date":"2026-02-18T22:09:43","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":385,"type":"message","date":"2026-02-19T14:50:35","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית גת (מיידי)\nבאר שבע (מיידי)"},{"id":386,"type":"message","date":"2026-02-19T15:44:56","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nשדרות (מיידי)\nנתיבות (מיידי)\nאשדוד (מיידי)\nלכיש (מיידי)"},{"id":387,"type":"message","date":"2026-02-19T15:46:10","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":388,"type":"message","date":"2026-02-19T21:36:42","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nנתיבות (מיידי)\nקריית ארבע (מיידי)\nאשדוד (מיידי)\nקריית גת (מיידי)"},{"id":389,"type":"message","date":"2026-02-19T21:37:32","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":390,"type":"message","date":"2026-02-20T01:31:47","text":"ירי רקטות וטילים\nשדרות (מיידי)\nנתיבות (מיידי)\nאשקלון (מיידי)\nקריית גת (מיידי)"},{"id":391,"type":"message","date":"2026-02-20T14:51:44","text":"ירי רקטות וטילים\nשדרות (מיידי)\nנתיבות (מיידי)\nקריית ארבע (מיידי)\nאשדוד (מיידי)\nקריית גת (מיידי)"},{"id":392,"type":"message","date":"2026-02-20T14:52:20","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":393,"type":"message","date":"2026-02-20T14:55:44","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nבאר שבע (מיידי)\nקריית גת (מיידי)"},{"id":394,"type":"message","date":"2026-02-20T16:58:29","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nלכיש (מיידי)\nקריית גת (מיידי)"},{"id":395,"type":"message","date":"2026-02-20T16:58:49","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":396,"type":"message","date":"2026-02-20T22:08:47","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית ארבע (מיידי)"},{"id":397,"type":"message","date":"2026-02-21T04:38:34","text":"ירי רקטות וטילים\nשדרות (מיידי)\nאשקלון (מיידי)"},{"id":398,"type":"message","date":"2026-02-21T04:39:56","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":399,"type":"message","date":"2026-02-21T12:16:36","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nקריית גת (מיידי)\nלכיש (מיידי)"},{"id":400,"type":"message","date":"2026-02-21T12:46:51","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nשדרות (מיידי)\nלכיש (מיידי)"},{"id":401,"type":"message","date":"2026-02-21T12:50:51","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nנתיבות (מיידי)\nקריית ארבע (מיידי)\nיבנה (מיידי)"},{"id":402,"type":"message","date":"2026-02-21T12:51:39","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":403,"type":"message","date":"2026-02-21T22:38:42","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)"},{"id":404,"type":"message","date":"2026-02-22T02:13:26","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nאשדוד (מיידי)\nלכיש (מיידי)"},{"id":405,"type":"message","date":"2026-02-22T02:14:33","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":406,"type":"message","date":"2026-02-22T02:16:26","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nקריית ארבע (מיידי)\nשדרות (מיידי)\nגן יבנה (מיידי)"},{"id":407,"type":"message","date":"2026-02-22T03:48:01","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nנתיבות (מיידי)\nשדרות (מיידי)\nרהט (מיידי)"},{"id":408,"type":"message","date":"2026-02-22T03:48:36","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":409,"type":"message","date":"2026-02-22T16:12:44","text":"ירי רקטות וטילים\nשדרות (מיידי)\nנתיבות (מיידי)\nקריית ארבע (מיידי)"},{"id":410,"type":"message","date":"2026-02-22T16:13:07","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nנתיבות (מיידי)\nקריית גת (מיידי)"},{"id":411,"type":"message","date":"2026-02-22T16:14:10","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":412,"type":"message","date":"2026-02-22T16:14:34","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":413,"type":"message","date":"2026-02-22T22:57:30","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nנתיבות (מיידי)"},{"id":414,"type":"message","date":"2026-02-22T22:58:12","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":415,"type":"message","date":"2026-02-23T01:26:53","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nלכיש (מיידי)\nרהט (מיידי)"},{"id":416,"type":"message","date":"2026-02-23T19:12:02","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nשדרות (מיידי)\nלכיש (מיידי)\nרהט (מיידי)"},{"id":417,"type":"message","date":"2026-02-23T19:12:48","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":418,"type":"message","date":"2026-02-24T00:06:52","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nאשקלון (מיידי)"},{"id":419,"type":"message","date":"2026-02-24T00:08:52","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nאשקלון (מיידי)\nראשון לציון (מיידי)"},{"id":420,"type":"message","date":"2026-02-24T01:02:27","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nקריית ארבע (מיידי)\nשדרות (מיידי)"},{"id":421,"type":"message","date":"2026-02-24T01:03:31","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":422,"type":"message","date":"2026-02-24T01:05:27","text":"ירי רקטות וטילים\nשדרות (מיידי)\nנתיבות (מיידי)\nקריית ארבע (מיידי)\nיבנה (מיידי)"},{"id":423,"type":"message","date":"2026-02-24T01:05:55","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":424,"type":"message","date":"2026-02-24T13:18:36","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nנתיבות (מיידי)\nאשדוד (מיידי)\nגדרה (מיידי)"},{"id":425,"type":"message","date":"2026-02-24T13:18:57","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":426,"type":"message","date":"2026-02-24T13:22:36","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nקריית ארבע (מיידי)"},{"id":427,"type":"message","date":"2026-02-24T18:07:19","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nקריית ארבע (מיידי)\nאשקלון (מיידי)\nלכיש (מיידי)\nאשדוד (מיידי)"},{"id":428,"type":"message","date":"2026-02-24T18:07:45","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":429,"type":"message","date":"2026-02-24T18:09:19","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nאשקלון (מיידי)"},{"id":430,"type":"message","date":"2026-02-24T18:09:50","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":431,"type":"message","date":"2026-02-24T19:44:18","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית גת (מיידי)\nבאר שבע (מיידי)"},{"id":432,"type":"message","date":"2026-02-24T21:48:11","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nאשדוד (מיידי)\nבאר שבע (מיידי)"},{"id":433,"type":"message","date":"2026-02-25T17:41:43","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית ארבע (מיידי)\nבאר שבע (מיידי)"},{"id":434,"type":"message","date":"2026-02-25T17:42:21","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":435,"type":"message","date":"2026-02-25T17:44:43","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nשדרות (מיידי)\nאשקלון (מיידי)\nאשדוד (מיידי)"},{"id":436,"type":"message","date":"2026-02-26T00:54:06","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nשדרות (מיידי)\nקריית גת (מיידי)\nאשדוד (מיידי)\nגן יבנה (מיידי)"},{"id":437,"type":"message","date":"2026-02-26T14:18:50","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nנתיבות (מיידי)\nשדרות (מיידי)\nלכיש (מיידי)\nקריית גת (מיידי)\nגן יבנה (מיידי)"},{"id":438,"type":"message","date":"2026-02-26T14:22:50","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית ארבע (מיידי)\nאשדוד (מיידי)\nבאר שבע (מיידי)"},{"id":439,"type":"message","date":"2026-02-26T14:23:21","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":440,"type":"message","date":"2026-02-26T15:58:17","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nשדרות (מיידי)\nלכיש (מיידי)\nאשדוד (מיידי)\nיבנה (מיידי)"},{"id":441,"type":"message","date":"2026-02-26T17:32:46","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nקריית ארבע (מיידי)\nנתיבות (מיידי)\nאשדוד (מיידי)\nאופקים (מיידי)"},{"id":442,"type":"message","date":"2026-02-26T17:33:57","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":443,"type":"message","date":"2026-02-26T19:41:48","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nשדרות (מיידי)\nאשקלון (מיידי)\nרהט (מיידי)"},{"id":444,"type":"message","date":"2026-02-26T19:43:04","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":445,"type":"message","date":"2026-02-26T19:45:48","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nגדרה (מיידי)"},{"id":446,"type":"message","date":"2026-02-26T19:46:58","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":447,"type":"message","date":"2026-02-27T04:02:25","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nאופקים (מיידי)"},{"id":448,"type":"message","date":"2026-02-27T14:31:36","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nשדרות (מיידי)\nלכיש (מיידי)"},{"id":449,"type":"message","date":"2026-02-27T14:33:03","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":450,"type":"message","date":"2026-02-27T22:26:23","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nאשקלון (מיידי)\nשדרות (מיידי)\nלכיש (מיידי)\nבאר שבע (מיידי)"},{"id":451,"type":"message","date":"2026-02-27T22:27:06","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":452,"type":"message","date":"2026-02-27T22:29:19","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)"},{"id":453,"type":"message","date":"2026-02-27T22:30:39","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":454,"type":"message","date":"2026-02-27T23:00:13","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nלכיש (מיידי)"},{"id":455,"type":"message","date":"2026-02-28T18:36:11","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nלכיש (מיידי)\nבאר שבע (מיידי)\nראשון לציון (מיידי)"},{"id":456,"type":"message","date":"2026-02-28T18:36:49","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":457,"type":"message","date":"2026-02-28T21:15:06","text":"ירי רקטות וטילים\nלהב (מיידי)"},{"id":458,"type":"message","date":"2026-02-28T21:15:42","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":459,"type":"message","date":"2026-02-28T21:47:12","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית ארבע (מיידי)\nאשדוד (מיידי)\nאופקים (מיידי)"},{"id":460,"type":"message","date":"2026-02-28T21:48:33","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":461,"type":"message","date":"2026-03-01T00:35:14","text":"ירי רקטות וטילים\nלהבים (מיידי)"},{"id":462,"type":"message","date":"2026-03-01T03:53:54","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nקריית ארבע (מיידי)\nנתיבות (מיידי)"},{"id":463,"type":"message","date":"2026-03-01T04:06:45","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nאשדוד (מיידי)"},{"id":464,"type":"message","date":"2026-03-01T04:22:53","text":"ירי רקטות וטילים\nסנסנה (מיידי)"},{"id":465,"type":"message","date":"2026-03-01T04:42:19","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nשדרות (מיידי)\nלכיש (מיידי)\nאשדוד (מיידי)"},{"id":466,"type":"message","date":"2026-03-01T17:23:37","text":"ירי רקטות וטילים\nשדרות (מיידי)\nקריית ארבע (מיידי)\nנתיבות (מיידי)\nקריית גת (מיידי)\nאשדוד (מיידי)"},{"id":467,"type":"message","date":"2026-03-01T20:16:56","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nנתיבות (מיידי)"},{"id":468,"type":"message","date":"2026-03-01T20:18:56","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nנתיבות (מיידי)\nגן יבנה (מיידי)"},{"id":469,"type":"message","date":"2026-03-01T20:19:27","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":470,"type":"message","date":"2026-03-01T21:33:13","text":"ירי רקטות וטילים\nקריית ארבע (מיידי)\nאשקלון (מיידי)\nלכיש (מיידי)\nרהט (מיידי)"},{"id":471,"type":"message","date":"2026-03-01T21:38:13","text":"ירי רקטות וטילים\nנתיבות (מיידי)\nקריית ארבע (מיידי)\nאשקלון (מיידי)\nלכיש (מיידי)\nבאר שבע (מיידי)"},{"id":472,"type":"message","date":"2026-03-02T00:01:19","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nקריית ארבע (מיידי)\nנתיבות (מיידי)\nלכיש (מיידי)\nגן יבנה (מיידי)"},{"id":473,"type":"message","date":"2026-03-02T00:04:19","text":"ירי רקטות וטילים\nאשקלון (מיידי)\nשדרות (מיידי)\nלכיש (מיידי)"},{"id":474,"type":"message","date":"2026-03-02T18:59:36","text":"ירי רקטות וטילים\nלהב (מיידי)"},{"id":475,"type":"message","date":"2026-03-02T19:00:06","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":476,"type":"message","date":"2026-03-02T20:24:16","text":"ירי רקטות וטילים\nלהבים (מיידי)"},{"id":477,"type":"message","date":"2026-03-03T01:43:03","text":"ירי רקטות וטילים\nסנסנה (מיידי)"},{"id":478,"type":"message","date":"2026-03-03T01:43:39","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":479,"type":"message","date":"2026-03-04T19:15:53","text":"ירי רקטות וטילים\nלהב (מיידי)"},{"id":480,"type":"message","date":"2026-03-04T19:17:01","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":481,"type":"message","date":"2026-03-04T22:52:23","text":"ירי רקטות וטילים\nלהבים (מיידי)"},{"id":482,"type":"message","date":"2026-03-05T04:16:15","text":"ירי רקטות וטילים\nסנסנה (מיידי)"},{"id":483,"type":"message","date":"2026-03-06T16:28:54","text":"ירי רקטות וטילים\nסנסנה (מיידי)"},{"id":484,"type":"message","date":"2026-03-06T16:29:49","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":485,"type":"message","date":"2026-03-06T22:05:51","text":"ירי רקטות וטילים\nלהבים (מיידי)"},{"id":486,"type":"message","date":"2026-03-06T22:06:33","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":487,"type":"message","date":"2026-03-07T01:06:22","text":"ירי רקטות וטילים\nלהב (מיידי)"},{"id":488,"type":"message","date":"2026-03-07T01:07:26","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":489,"type":"message","date":"2026-03-08T22:21:38","text":"ירי רקטות וטילים\nלהב (מיידי)"},{"id":490,"type":"message","date":"2026-03-08T22:22:42","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":491,"type":"message","date":"2026-03-08T23:15:12","text":"ירי רקטות וטילים\nלהבים (מיידי)"},{"id":492,"type":"message","date":"2026-03-08T23:16:00","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":493,"type":"message","date":"2026-03-09T00:53:24","text":"ירי רקטות וטילים\nסנסנה (מיידי)"},{"id":494,"type":"message","date":"2026-03-09T00:54:16","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":495,"type":"message","date":"2026-03-10T23:38:57","text":"ירי רקטות וטילים\nלהב (מיידי)"},{"id":496,"type":"message","date":"2026-03-11T00:12:58","text":"ירי רקטות וטילים\nסנסנה (מיידי)"},{"id":497,"type":"message","date":"2026-03-11T00:14:02","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":498,"type":"message","date":"2026-03-11T04:51:51","text":"ירי רקטות וטילים\nלהבים (מיידי)"},{"id":499,"type":"message","date":"2026-03-11T04:52:45","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":500,"type":"message","date":"2026-03-12T16:04:25","text":"ירי רקטות וטילים\nסנסנה (מיידי)"},{"id":501,"type":"message","date":"2026-03-12T16:05:23","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":502,"type":"message","date":"2026-03-12T22:44:33","text":"ירי רקטות וטילים\nלהבים (מיידי)"},{"id":503,"type":"message","date":"2026-03-12T22:45:27","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":504,"type":"message","date":"2026-03-13T02:14:53","text":"ירי רקטות וטילים\nלהב (מיידי)"},{"id":505,"type":"message","date":"2026-03-14T21:16:09","text":"ירי רקטות וטילים\nסנסנה (מיידי)"},{"id":506,"type":"message","date":"2026-03-15T03:11:57","text":"ירי רקטות וטילים\nלהב (מיידי)"},{"id":507,"type":"message","date":"2026-03-15T03:12:51","text":"ירי רקטות וטילים\nבית חגי (מיידי)"},{"id":508,"type":"message","date":"2026-03-15T04:41:50","text":"ירי רקטות וטילים\nלהבים (מיידי)"},{"id":509,"type":"message","date":"2026-03-15T04:42:28","text":"ירי רקטות וטילים\nבית חגי (מיידי)"}]};
+
+window.addEventListener('DOMContentLoaded', function() {
+  const banner = document.createElement('div');
+  banner.style.cssText = 'background:#0d3b2e;border:1px solid #1e7a4e;border-radius:12px;padding:14px 18px;margin-bottom:16px;color:#7dd3b0;font-size:.9rem;text-align:center';
+  banner.innerHTML = '✅ <strong>הנתונים כבר מוטמעים בקובץ זה</strong> — אין צורך לטעון קובץ נפרד';
+  const dropZone = document.getElementById('dropZone');
+  if (dropZone && dropZone.parentNode) {
+    dropZone.parentNode.insertBefore(banner, dropZone);
+  }
+
+  if (EMBEDDED_DATA && Array.isArray(EMBEDDED_DATA.messages)) {
+    loadedMessages = EMBEDDED_DATA.messages;
+    showStatus('✅ נטענו ' + loadedMessages.length + ' הודעות (מוטמע)');
+    setTimeout(hideStatus, 2500);
+    buildTargetDropdown();
+    document.getElementById('settings').classList.add('visible');
+  }
+});
+</script>
+</body>
+</html>

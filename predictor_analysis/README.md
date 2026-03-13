@@ -6,13 +6,28 @@ for a target settlement.
 
 ---
 
-## 🌐 Easiest Option: Browser Tool (no installation required)
+## ⭐ Single-File Option: Download ONE file and you're done
 
-**`predictor_browser.html`** — a single self-contained HTML file that runs entirely
-in your browser. No Python, no command line, no internet connection needed after
-downloading the file.
+**`predictor_browser_standalone.html`** — the data is already embedded inside the HTML.
+No separate JSON file needed. Just download, open, and click Analyze.
 
-1. Download `predictor_browser.html` from this folder to the same directory as your `result_filtered.json`
+1. Download `predictor_browser_standalone.html` from this folder (click **Raw**, then **Ctrl+S**)
+2. Double-click it to open in your browser
+3. Click **"🔍 נתח עכשיו"** — results appear immediately, no file loading needed
+
+> To regenerate this file after updating `result_filtered.json`, run:
+> ```
+> python build_standalone.py
+> ```
+
+---
+
+## 🌐 Two-File Option: Browser Tool with separate data file
+
+**`predictor_browser.html`** — use this if you have a fresh `result_filtered.json`
+that is newer than what is embedded in the standalone file above.
+
+1. Download `predictor_browser.html` to the **same directory** as your `result_filtered.json`
 2. Double-click `predictor_browser.html` to open it in your browser
 3. Drag your `result_filtered.json` onto the drop zone (or click "בחר קובץ")
 4. Click **"🔍 נתח עכשיו"** — results appear as color-coded cards with plain-Hebrew decision sentences
