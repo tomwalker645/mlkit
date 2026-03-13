@@ -9,11 +9,10 @@ for a target settlement.
 ## ⭐ Single-File Option: Download ONE file and you're done
 
 **[`predictor_browser_standalone.html`](predictor_browser_standalone.html)** — the data is already embedded inside the HTML.
-No separate JSON file needed. Just download, open, and click Analyze.
+No separate JSON file needed. Download, open, and results appear automatically.
 
 1. Click **[predictor_browser_standalone.html](predictor_browser_standalone.html)**, then click **Raw**, then **Ctrl+S** to save
-2. Double-click it to open in your browser
-3. Click **"🔍 נתח עכשיו"** — results appear immediately, no file loading needed
+2. Double-click it to open in your browser — **results appear automatically, no clicking required**
 
 > To regenerate this file after updating `result_filtered.json`, run:
 > ```

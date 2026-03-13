@@ -67,6 +67,7 @@ window.addEventListener('DOMContentLoaded', function() {{
     setTimeout(hideStatus, 2500);
     buildTargetDropdown();
     document.getElementById('settings').classList.add('visible');
+    runAnalysis();
   }}
 }});
 """
