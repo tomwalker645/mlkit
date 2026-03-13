@@ -10,13 +10,9 @@
 
 ### שלב 1 — הורד קובץ אחד בלבד
 
-1. פתח את הדפדפן
-2. היכנס לקישור:
-   ```
-   https://github.com/tomwalker645/mlkit/blob/master/predictor_analysis/predictor_browser_standalone.html
-   ```
-3. לחץ על כפתור **"Raw"** (בפינה הימנית עליונה של הקוד)
-4. לחץ **Ctrl+S** לשמירה — שמור בשם `predictor_browser_standalone.html` בכל מקום שנוח לך
+1. לחץ על הקישור: **[predictor_browser_standalone.html](predictor_browser_standalone.html)**
+2. לחץ על כפתור **"Raw"** (בפינה הימנית עליונה של הקוד)
+3. לחץ **Ctrl+S** לשמירה — שמור בשם `predictor_browser_standalone.html` בכל מקום שנוח לך
 
 ### שלב 2 — פתח את הקובץ בדפדפן
 
@@ -42,13 +38,9 @@
 
 ### שלב 1 — הורד את קובץ הדפדפן
 
-1. פתח את הדפדפן
-2. היכנס לקישור:
-   ```
-   https://github.com/tomwalker645/mlkit/blob/master/predictor_analysis/predictor_browser.html
-   ```
-3. לחץ על כפתור **"Raw"** (בפינה הימנית עליונה של הקוד)
-4. לחץ **Ctrl+S** לשמירה — שמור כ-`predictor_browser.html` **באותה תיקייה** שיש בה את `result_filtered.json`
+1. לחץ על הקישור: **[predictor_browser.html](predictor_browser.html)**
+2. לחץ על כפתור **"Raw"** (בפינה הימנית עליונה של הקוד)
+3. לחץ **Ctrl+S** לשמירה — שמור כ-`predictor_browser.html` **באותה תיקייה** שיש בה את `result_filtered.json`
 
 ### שלב 2 — פתח את הקובץ בדפדפן
 
@@ -127,16 +119,11 @@
 > ⚠️ **אם אתה רואה שגיאה כמו `unrecognized arguments: --range` או `unrecognized arguments: --html` — הגרסה שלך ישנה.
 > הורד מחדש את הקובץ לפי ההוראות כאן ועצה על הישן.**
 
-1. פתח את הדפדפן
-2. היכנס לקישור הזה:
-   ```
-   https://github.com/tomwalker645/mlkit/blob/master/predictor_analysis/analyze_predictors_en_safe.py
-   ```
-   > אם הקישור לא עובד — שאל את מי שנתן לך את ההוראות האלה, ובקש ממנו לשלוח את הקובץ ישירות.
-3. תראה מסך עם הרבה טקסט. לחץ על הכפתור שכתוב עליו **"Raw"**
+1. לחץ על הקישור: **[analyze_predictors_en_safe.py](analyze_predictors_en_safe.py)**
+2. תראה מסך עם הרבה טקסט. לחץ על הכפתור שכתוב עליו **"Raw"**
    (הוא נמצא בפינה הימנית עליונה של האזור עם הטקסט)
-4. עכשיו המסך הפך לדף עם רק טקסט — לחץ **Ctrl+S** (לחזק Ctrl ו-S ביחד) כדי לשמור
-5. בחלון השמירה:
+3. עכשיו המסך הפך לדף עם רק טקסט — לחץ **Ctrl+S** (לחזק Ctrl ו-S ביחד) כדי לשמור
+4. בחלון השמירה:
    - שנה את שם הקובץ ל: `analyze_predictors_en_safe.py`
    - **החלף את הקובץ הישן** — שמור **באותה תיקייה** שיש בה את `result_filtered.json`
      (בדרך כלל: `C:\Users\User\Downloads`)
